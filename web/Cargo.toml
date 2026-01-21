@@ -1,0 +1,44 @@
+[package]
+name = "gpop-web"
+version = "0.2.0"
+edition = "2021"
+authors = ["Stéphane Cerveau <scerveau@igalia.com>"]
+license = "GPL-3.0-or-later"
+description = "Web interface for gpop transcoding"
+repository = "https://github.com/dabrain34/gpop"
+readme = "README.md"
+
+[dependencies]
+# Web framework
+actix-web = "4"
+actix-files = "0.6"
+actix-multipart = "0.7"
+actix-ws = "0.3"
+
+# Async runtime (shared with actix)
+tokio = { version = "1", features = ["full", "signal"] }
+tokio-stream = "0.1"
+
+# WebSocket client (to connect to gpop-daemon)
+tokio-tungstenite = "0.26"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Utilities
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "2"
+clap = { version = "4", features = ["derive", "env"] }
+
+# File handling
+sanitize-filename = "0.5"
+mime_guess = "2"
+
+[[bin]]
+name = "gpop-web"
+path = "src/main.rs"

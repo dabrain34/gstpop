@@ -2,6 +2,7 @@
 members = [
     "daemon",
     "client/rust",
+    "web",
 ]
 resolver = "2"
 default-members = ["daemon"]
