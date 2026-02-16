@@ -197,6 +197,18 @@ impl PipelineManager {
         self.set_state(id, PipelineState::Playing).await
     }
 
+    /// Play multiple pipelines, returning the set of IDs that failed to start.
+    pub async fn play_all(&self, ids: &[String]) -> std::collections::HashSet<String> {
+        let mut failed = std::collections::HashSet::new();
+        for id in ids {
+            if let Err(e) = self.play(id).await {
+                warn!("Failed to play pipeline '{}': {}", id, e);
+                failed.insert(id.clone());
+            }
+        }
+        failed
+    }
+
     pub async fn pause(&self, id: &str) -> Result<()> {
         self.set_state(id, PipelineState::Paused).await
     }

@@ -98,9 +98,11 @@ By default, the server binds to `ws://127.0.0.1:9000`.
 
 Options:
 - `--bind` / `-b`: IP address to bind to (default: `127.0.0.1`)
-- `--port` / `-p`: Port to listen on (default: `9000`)
-- `--pipeline` / `-P`: Initial pipeline(s) to create
+- `--port` / `-P`: Port to listen on (default: `9000`)
+- `--pipeline` / `-p`: Initial pipeline(s) to create
+- `--playback-mode` / `-x`: Auto-play all pipelines and exit when all reach EOS
 - `--api-key`: API key for WebSocket authentication
+- `--allowed-origin`: Allowed origins for WebSocket connections (CSRF protection)
 - `--no-websocket`: Disable WebSocket interface
 - `--no-dbus`: Disable DBus interface (Linux only)
 

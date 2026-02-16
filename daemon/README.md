@@ -6,6 +6,10 @@ GStreamer Prince of Parser - A pipeline management daemon with WebSocket and DBu
 
 - [Overview](#overview)
 - [Features](#features)
+- [Architecture](#architecture)
+  - [Source Layout](#source-layout)
+  - [Component Diagram](#component-diagram)
+  - [Key Design Decisions](#key-design-decisions)
 - [Building](#building)
   - [With Cargo (standalone)](#with-cargo-standalone)
   - [With Meson (full project)](#with-meson-full-project)
@@ -15,6 +19,8 @@ GStreamer Prince of Parser - A pipeline management daemon with WebSocket and DBu
 - [Authentication](#authentication)
   - [Authentication Responses](#authentication-responses)
   - [Client Examples](#client-examples)
+- [Playback Mode](#playback-mode)
+  - [Exit Codes](#exit-codes)
 - [WebSocket API](#websocket-api)
   - [Protocol](#protocol)
   - [Methods](#methods)
@@ -39,6 +45,91 @@ GStreamer Prince of Parser - A pipeline management daemon with WebSocket and DBu
 - **DBus Interface** (Linux only): Native DBus integration for desktop applications
 - **Real-time Events**: Receive pipeline state changes, errors, EOS, and lifecycle notifications
 - **Pipeline Introspection**: Get DOT graph representations of pipelines
+
+## Architecture
+
+### Source Layout
+
+```
+daemon/src/
+├── main.rs              # CLI entry point (clap), server startup, signal handling
+├── lib.rs               # Public API re-exports
+├── error.rs             # GpopError enum (thiserror)
+├── gst/
+│   ├── mod.rs           # Module root, constants (MAX_PIPELINES, SHUTDOWN_GRACE_PERIOD_MS)
+│   ├── event.rs         # PipelineEvent enum, PipelineState, broadcast channel factory
+│   ├── manager.rs       # PipelineManager — thread-safe pipeline registry
+│   └── pipeline.rs      # Pipeline — wraps gst::Pipeline, bus watcher, state control
+├── websocket/
+│   ├── mod.rs           # Module root, constants (MAX_CONCURRENT_CLIENTS, ports, buffers)
+│   ├── server.rs        # WebSocketServer — TCP listener, auth, origin validation, event fan-out
+│   ├── manager.rs       # ManagerInterface — routes JSON-RPC requests to PipelineManager
+│   ├── pipeline.rs      # Request/result structs for pipeline operations
+│   └── protocol.rs      # JSON-RPC 2.0 Request/Response/error code definitions
+└── dbus/                # Linux only (gated with #[cfg(target_os = "linux")])
+    ├── mod.rs           # DbusServer, event forwarder task
+    ├── manager.rs       # org.gpop.Manager interface (zbus)
+    └── pipeline.rs      # org.gpop.Pipeline interface (zbus)
+```
+
+### Component Diagram
+
+```
+                         ┌──────────────────────────────────┐
+                         │            main.rs                │
+                         │  CLI parsing, server bootstrap,   │
+                         │  playback mode tracker            │
+                         └──────────┬───────────────────────┘
+                                    │ creates
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+           ┌──────────────┐ ┌─────────────┐ ┌─────────────┐
+           │ WebSocket    │ │   DBus      │ │  Playback   │
+           │ Server       │ │  Server     │ │  Tracker    │
+           │ (tokio task) │ │ (zbus,      │ │ (tokio task)│
+           │              │ │  Linux only)│ │             │
+           └──────┬───────┘ └──────┬──────┘ └──────┬──────┘
+                  │                │               │
+                  │  JSON-RPC      │  zbus methods  │ listens to
+                  │  requests      │  & properties  │ events
+                  ▼                ▼               │
+           ┌─────────────────────────────┐        │
+           │      PipelineManager        │        │
+           │  Arc<RwLock<HashMap<        │        │
+           │    String, Arc<Mutex<       │        │
+           │      Pipeline>>>>>          │        │
+           └──────────┬──────────────────┘        │
+                      │ owns                      │
+                      ▼                           │
+           ┌─────────────────────┐                │
+           │     Pipeline        │                │
+           │  gst::Pipeline      │                │
+           │  bus watcher task   │────────────────┘
+           │  shutdown flag      │   sends events via
+           └─────────────────────┘   broadcast channel
+                      │
+                      ▼
+           ┌─────────────────────┐
+           │  Event Broadcast    │
+           │  Channel (256 buf)  │──► WebSocket clients
+           │                     │──► DBus signal forwarder
+           │                     │──► Playback tracker
+           └─────────────────────┘
+```
+
+### Key Design Decisions
+
+**Thread-safe pipeline management.** `PipelineManager` uses `RwLock<HashMap<String, Arc<Mutex<Pipeline>>>>`. The outer `RwLock` allows concurrent reads (listing, querying) while serializing writes (add, remove, update). Each `Pipeline` has its own `Mutex` so operations on different pipelines don't block each other.
+
+**Event broadcasting.** A single `tokio::sync::broadcast` channel (capacity 256) distributes `PipelineEvent`s to all subscribers. Each bus watcher task sends events into the channel; the WebSocket server, DBus forwarder, and playback tracker each hold their own receiver. This decouples producers from consumers — adding a new consumer requires only calling `event_tx.subscribe()`.
+
+**Bus watcher per pipeline.** Each `Pipeline` spawns a tokio task that polls the GStreamer bus via `spawn_blocking` (100ms timeout per poll) to avoid blocking the async runtime. The task checks an `AtomicBool` shutdown flag between polls for clean teardown.
+
+**JSON-RPC 2.0 over WebSocket.** The WebSocket server accepts TCP connections, performs the HTTP upgrade with optional API key authentication and origin validation, then spawns two tasks per client: one reads incoming JSON-RPC requests and routes them through `ManagerInterface`, the other forwards broadcast events. Per-client message channels are bounded (`CLIENT_MESSAGE_BUFFER = 256`) to apply backpressure to slow clients.
+
+**Platform-specific DBus.** The entire `dbus/` module is conditionally compiled with `#[cfg(target_os = "linux")]`. The `DbusServer` listens for `PipelineAdded`/`PipelineRemoved` events and dynamically registers/unregisters `org.gpop.Pipeline{N}` objects on the session bus via zbus.
+
+**Playback mode.** When `--playback-mode` is enabled, a dedicated tokio task tracks pipeline completion events against a `HashSet<String>` of pending pipeline IDs. When all pipelines finish, a oneshot channel signals the main loop to exit with the appropriate exit code (0 for success, 1 for error, 69 for unsupported media).
 
 ## Building
 
@@ -79,7 +170,7 @@ gpop-daemon
 gpop-daemon --bind 0.0.0.0 --port 8080
 
 # With initial pipeline
-gpop-daemon -P "videotestsrc ! autovideosink"
+gpop-daemon -p "videotestsrc ! autovideosink"
 
 # With authentication
 gpop-daemon --api-key mysecretkey
@@ -93,9 +184,11 @@ RUST_LOG=debug gpop-daemon
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
 | `--bind` | `-b` | `127.0.0.1` | IP address to bind to |
-| `--port` | `-p` | `9000` | Port to listen on |
-| `--pipeline` | `-P` | - | Initial pipeline(s) to create |
+| `--port` | `-P` | `9000` | Port to listen on |
+| `--pipeline` | `-p` | - | Initial pipeline(s) to create (can be repeated) |
+| `--playback-mode` | `-x` | - | Auto-play all pipelines and exit when all reach EOS |
 | `--api-key` | - | - | API key for WebSocket authentication |
+| `--allowed-origin` | - | - | Allowed origins for WebSocket connections (can be repeated) |
 | `--no-websocket` | - | - | Disable WebSocket interface |
 | `--no-dbus` | - | - | Disable DBus interface (Linux only) |
 
@@ -185,6 +278,35 @@ curl -i -N \
   -H "Authorization: mysecretkey" \
   http://localhost:9000/
 ```
+
+## Playback Mode
+
+Playback mode (`--playback-mode` / `-x`) turns gpop into a batch pipeline runner. All pipelines specified with `--pipeline` are automatically played on startup and the daemon exits when every pipeline has finished.
+
+```bash
+# Play a single pipeline and exit on EOS
+gpop-daemon -x -p "filesrc location=video.mp4 ! decodebin ! fakesink"
+
+# Play multiple pipelines in parallel, exit when all finish
+gpop-daemon -x \
+  -p "filesrc location=video1.mp4 ! decodebin ! fakesink" \
+  -p "filesrc location=video2.mp4 ! decodebin ! fakesink"
+
+# Playback mode with WebSocket disabled
+gpop-daemon -x --no-websocket -p "videotestsrc num-buffers=100 ! fakesink"
+```
+
+WebSocket and DBus interfaces remain active during playback mode, allowing monitoring and control. Disable them with `--no-websocket` and `--no-dbus` if not needed.
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | All pipelines reached EOS successfully |
+| `1` | At least one pipeline errored |
+| `69` | At least one pipeline had unsupported media (EX_UNAVAILABLE, matching gst-launch convention) |
+
+Error takes priority over unsupported: if any pipeline errors and another has unsupported media, exit code is `1`.
 
 ## WebSocket API
 

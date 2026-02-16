@@ -28,3 +28,6 @@ mod manager_tests;
 
 #[cfg(test)]
 mod pipeline_tests;
+
+#[cfg(test)]
+mod playback_mode_tests;
