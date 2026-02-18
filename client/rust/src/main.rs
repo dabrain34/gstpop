@@ -62,6 +62,7 @@ fn print_help() {
     println!("  version                  - Get daemon version");
     println!("  sysinfo                  - Get daemon and GStreamer info");
     println!("  count                    - Get pipeline count");
+    println!("  elements [detail]        - List GStreamer elements (detail: none, summary, full)");
     println!("  help                     - Show this help");
     println!("  quit                     - Exit");
     println!();
@@ -166,6 +167,13 @@ fn parse_command(line: &str) -> Option<Request> {
             id: new_id(),
             method: "get_pipeline_count".to_string(),
             params: serde_json::json!({}),
+        }),
+        "elements" => Some(Request {
+            id: new_id(),
+            method: "get_elements".to_string(),
+            params: serde_json::json!({
+                "detail": parts.get(1).copied()
+            }),
         }),
         "help" => {
             print_help();

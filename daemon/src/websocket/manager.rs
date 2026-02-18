@@ -59,6 +59,7 @@ impl ManagerInterface {
             "get_version" => self.get_version(request.id),
             "get_info" => self.get_info(request.id),
             "get_pipeline_count" => self.get_pipeline_count(request.id).await,
+            "get_elements" => self.get_elements(request),
             // snapshot is handled separately in server.rs
             _ => Response::method_not_found(request.id, &request.method),
         }
@@ -87,6 +88,21 @@ impl ManagerInterface {
         let count = self.manager.pipeline_count().await;
         let result = PipelineCountResult { count };
         to_json_value(id, &result)
+    }
+
+    fn get_elements(&self, request: Request) -> Response {
+        let params: GetElementsParams =
+            serde_json::from_value(request.params).unwrap_or(GetElementsParams { detail: None });
+
+        let detail_str = params.detail.as_deref().unwrap_or("none");
+        let detail = match detail_str.parse::<crate::gst::registry::DetailLevel>() {
+            Ok(d) => d,
+            Err(e) => return Response::invalid_params(request.id, e),
+        };
+
+        let elements = crate::gst::registry::get_elements(detail);
+        let result = GetElementsResult { elements };
+        to_json_value(request.id, &result)
     }
 
     async fn list_pipelines(&self, id: String) -> Response {
