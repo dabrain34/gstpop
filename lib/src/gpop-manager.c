@@ -130,7 +130,9 @@ gpop_manager_dbus_set_property (GDBusConnection * connection,
     const gchar * property_name,
     GVariant * value, GError ** error, gpointer user_data)
 {
-  return *error == NULL;
+  g_set_error (error, G_DBUS_ERROR, G_DBUS_ERROR_PROPERTY_READ_ONLY,
+      "Property '%s' is read-only", property_name);
+  return FALSE;
 }
 
 static void

@@ -62,12 +62,12 @@ impl PipelineManager {
         let pipeline = Arc::new(Mutex::new(pipeline));
 
         // Extract bus watch parameters synchronously to avoid race conditions
-        let (bus, shutdown_flag) = {
+        let (bus, shutdown_flag, pipeline_obj) = {
             let p = pipeline.lock().await;
             let bus = p
                 .bus()
                 .ok_or_else(|| GpopError::InvalidPipeline("Pipeline has no bus".to_string()))?;
-            (bus, p.shutdown_flag())
+            (bus, p.shutdown_flag(), p.pipeline_object())
         };
 
         // Start bus watcher and get the task handle
@@ -76,7 +76,7 @@ impl PipelineManager {
             id.clone(),
             self.event_tx.clone(),
             shutdown_flag,
-            Arc::clone(&pipeline),
+            pipeline_obj,
         );
 
         // Store the task handle synchronously
@@ -87,6 +87,13 @@ impl PipelineManager {
 
         {
             let mut pipelines = self.pipelines.write().await;
+            // Re-check limit under write lock to prevent TOCTOU race
+            if pipelines.len() >= MAX_PIPELINES {
+                return Err(GpopError::InvalidPipeline(format!(
+                    "Maximum number of pipelines ({}) reached",
+                    MAX_PIPELINES
+                )));
+            }
             pipelines.insert(id.clone(), pipeline);
         }
 
@@ -107,9 +114,13 @@ impl PipelineManager {
     }
 
     pub async fn remove_pipeline(&self, id: &str) -> Result<()> {
-        let mut pipelines = self.pipelines.write().await;
+        let pipeline = {
+            let mut pipelines = self.pipelines.write().await;
+            pipelines.remove(id)
+        };
+        // Write lock released before stopping the pipeline
 
-        if let Some(pipeline) = pipelines.remove(id) {
+        if let Some(pipeline) = pipeline {
             {
                 let p = pipeline.lock().await;
                 p.stop()?;
@@ -197,16 +208,26 @@ impl PipelineManager {
         self.set_state(id, PipelineState::Playing).await
     }
 
-    /// Play multiple pipelines, returning the set of IDs that failed to start.
+    /// Play multiple pipelines concurrently, returning the set of IDs that failed to start.
     pub async fn play_all(&self, ids: &[String]) -> std::collections::HashSet<String> {
-        let mut failed = std::collections::HashSet::new();
-        for id in ids {
-            if let Err(e) = self.play(id).await {
-                warn!("Failed to play pipeline '{}': {}", id, e);
-                failed.insert(id.clone());
-            }
-        }
-        failed
+        let futures: Vec<_> = ids
+            .iter()
+            .map(|id| async move {
+                match self.play(id).await {
+                    Ok(()) => None,
+                    Err(e) => {
+                        warn!("Failed to play pipeline '{}': {}", id, e);
+                        Some(id.clone())
+                    }
+                }
+            })
+            .collect();
+
+        futures_util::future::join_all(futures)
+            .await
+            .into_iter()
+            .flatten()
+            .collect()
     }
 
     pub async fn pause(&self, id: &str) -> Result<()> {
@@ -239,12 +260,12 @@ impl PipelineManager {
         let new_pipeline = Arc::new(Mutex::new(new_pipeline));
 
         // Extract bus watch parameters for the new pipeline
-        let (bus, shutdown_flag) = {
+        let (bus, shutdown_flag, pipeline_obj) = {
             let p = new_pipeline.lock().await;
             let bus = p
                 .bus()
                 .ok_or_else(|| GpopError::InvalidPipeline("Pipeline has no bus".to_string()))?;
-            (bus, p.shutdown_flag())
+            (bus, p.shutdown_flag(), p.pipeline_object())
         };
 
         // Acquire write lock and perform atomic check-and-swap
@@ -264,7 +285,7 @@ impl PipelineManager {
             id.to_string(),
             self.event_tx.clone(),
             shutdown_flag,
-            Arc::clone(&new_pipeline),
+            pipeline_obj,
         );
 
         // Store the task handle
@@ -273,18 +294,18 @@ impl PipelineManager {
             p.set_bus_task(bus_task);
         }
 
-        // Stop and remove the old pipeline
-        if let Some(old_pipeline) = pipelines.remove(id) {
-            let p = old_pipeline.lock().await;
-            let _ = p.stop();
-            // Drop will clean up the bus task
-        }
-
-        // Insert the new pipeline with the same ID
+        // Swap: insert new pipeline, extract old one
+        let old_pipeline = pipelines.remove(id);
         pipelines.insert(id.to_string(), new_pipeline);
 
-        // Release the write lock before sending events
+        // Release the write lock before stopping old pipeline
         drop(pipelines);
+
+        // Stop old pipeline outside the lock
+        if let Some(old_pipeline) = old_pipeline {
+            let p = old_pipeline.lock().await;
+            let _ = p.stop();
+        }
 
         info!("Updated pipeline '{}': {}", id, description);
 
@@ -309,19 +330,19 @@ impl PipelineManager {
             pipelines.drain().collect()
         };
 
+        // Signal all pipelines to shutdown first
+        for (_, pipeline) in &pipelines_to_stop {
+            let p = pipeline.lock().await;
+            p.signal_shutdown();
+        }
+
+        // Single grace period for all bus watchers
+        tokio::time::sleep(tokio::time::Duration::from_millis(SHUTDOWN_GRACE_PERIOD_MS)).await;
+
+        // Now stop all pipelines
         for (id, pipeline) in pipelines_to_stop {
-            // Signal shutdown first (doesn't require lock as it uses atomic)
-            {
-                let p = pipeline.lock().await;
-                p.signal_shutdown();
-            }
-            // Give bus watcher time to see the shutdown flag
-            tokio::time::sleep(tokio::time::Duration::from_millis(SHUTDOWN_GRACE_PERIOD_MS)).await;
-            // Now stop the pipeline
-            {
-                let p = pipeline.lock().await;
-                let _ = p.stop();
-            }
+            let p = pipeline.lock().await;
+            let _ = p.stop();
             info!("Stopped pipeline '{}' during shutdown", id);
         }
     }
