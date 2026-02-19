@@ -25,7 +25,7 @@
 #define _GPOP_DBUS_INTERFACE_H_
 
 #include <gio/gio.h>
-#include <glib-2.0/glib.h>
+#include <glib.h>
 
 #define GPOP_TYPE_DBUS_INTERFACE    (gpop_dbus_interface_get_type())
 #define GPOP_DBUS_INTERFACE(obj)            (G_TYPE_CHECK_INSTANCE_CAST((obj),\

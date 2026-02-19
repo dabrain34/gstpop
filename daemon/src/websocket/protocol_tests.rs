@@ -15,7 +15,7 @@ fn test_request_deserialize() {
     let json = r#"{"id":"123","method":"list_pipelines","params":{}}"#;
     let request: Request = serde_json::from_str(json).unwrap();
 
-    assert_eq!(request.id, "123");
+    assert_eq!(request.id, serde_json::json!("123"));
     assert_eq!(request.method, "list_pipelines");
 }
 
@@ -24,7 +24,7 @@ fn test_request_deserialize_with_params() {
     let json = r#"{"id":"456","method":"create_pipeline","params":{"description":"videotestsrc ! fakesink"}}"#;
     let request: Request = serde_json::from_str(json).unwrap();
 
-    assert_eq!(request.id, "456");
+    assert_eq!(request.id, serde_json::json!("456"));
     assert_eq!(request.method, "create_pipeline");
 
     let params: CreatePipelineParams = serde_json::from_value(request.params).unwrap();
@@ -36,17 +36,29 @@ fn test_request_deserialize_optional_params() {
     let json = r#"{"id":"789","method":"list_pipelines"}"#;
     let request: Request = serde_json::from_str(json).unwrap();
 
-    assert_eq!(request.id, "789");
+    assert_eq!(request.id, serde_json::json!("789"));
     assert_eq!(request.method, "list_pipelines");
     assert!(request.params.is_null());
 }
 
 #[test]
-fn test_request_missing_id_fails() {
-    // Per JSON-RPC 2.0, id is required for requests expecting a response
+fn test_request_numeric_id() {
+    // JSON-RPC 2.0 allows numeric IDs
+    let json = r#"{"id":42,"method":"list_pipelines"}"#;
+    let request: Request = serde_json::from_str(json).unwrap();
+
+    assert_eq!(request.id, serde_json::json!(42));
+    assert_eq!(request.method, "list_pipelines");
+}
+
+#[test]
+fn test_request_notification_no_id() {
+    // JSON-RPC 2.0 notifications omit the id field
     let json = r#"{"method":"list_pipelines"}"#;
-    let result: Result<Request, _> = serde_json::from_str(json);
-    assert!(result.is_err());
+    let request: Request = serde_json::from_str(json).unwrap();
+
+    assert!(request.id.is_null());
+    assert_eq!(request.method, "list_pipelines");
 }
 
 #[test]
@@ -59,10 +71,12 @@ fn test_request_missing_method_fails() {
 
 #[test]
 fn test_invalid_request_response() {
-    let response =
-        Response::invalid_request("123".to_string(), "Missing required field".to_string());
+    let response = Response::invalid_request(
+        serde_json::json!("123"),
+        "Missing required field".to_string(),
+    );
 
-    assert_eq!(response.id, "123");
+    assert_eq!(response.id, serde_json::json!("123"));
     assert!(response.error.is_some());
 
     let error = response.error.unwrap();
@@ -72,11 +86,11 @@ fn test_invalid_request_response() {
 #[test]
 fn test_response_success() {
     let response = Response::success(
-        "123".to_string(),
+        serde_json::json!("123"),
         serde_json::json!({"pipeline_id": "pipeline-0"}),
     );
 
-    assert_eq!(response.id, "123");
+    assert_eq!(response.id, serde_json::json!("123"));
     assert!(response.result.is_some());
     assert!(response.error.is_none());
 
@@ -87,9 +101,13 @@ fn test_response_success() {
 
 #[test]
 fn test_response_error() {
-    let response = Response::error("123".to_string(), -32600, "Invalid request".to_string());
+    let response = Response::error(
+        serde_json::json!("123"),
+        -32600,
+        "Invalid request".to_string(),
+    );
 
-    assert_eq!(response.id, "123");
+    assert_eq!(response.id, serde_json::json!("123"));
     assert!(response.result.is_none());
     assert!(response.error.is_some());
 
@@ -100,17 +118,24 @@ fn test_response_error() {
 
 #[test]
 fn test_response_serialization_skips_none() {
-    let success = Response::success("1".to_string(), serde_json::json!({}));
+    let success = Response::success(serde_json::json!("1"), serde_json::json!({}));
     let json = serde_json::to_string(&success).unwrap();
     assert!(!json.contains("\"error\""));
 
     let error = Response::error(
-        "2".to_string(),
+        serde_json::json!("2"),
         error_codes::INTERNAL_ERROR,
         "Error".to_string(),
     );
     let json = serde_json::to_string(&error).unwrap();
     assert!(!json.contains("\"result\""));
+}
+
+#[test]
+fn test_response_echoes_numeric_id() {
+    let response = Response::success(serde_json::json!(42), serde_json::json!({}));
+    let json = serde_json::to_string(&response).unwrap();
+    assert!(json.contains("\"id\":42"));
 }
 
 #[test]

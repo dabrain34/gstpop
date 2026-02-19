@@ -333,6 +333,7 @@ gpop_client_connect (GPOPClient *client)
                                         NULL,
                                         on_websocket_connected,
                                         client);
+  g_object_unref (msg);
 }
 
 void
@@ -378,7 +379,7 @@ gpop_client_send_request (GPOPClient *client,
   json_builder_set_member_name (builder, "params");
   if (params) {
     JsonNode *params_node = json_node_new (JSON_NODE_OBJECT);
-    json_node_set_object (params_node, json_object_ref (params));
+    json_node_set_object (params_node, params);
     json_builder_add_value (builder, params_node);
   } else {
     json_builder_begin_object (builder);
@@ -395,6 +396,7 @@ gpop_client_send_request (GPOPClient *client,
   soup_websocket_connection_send_text (client->ws, json_str);
 
   g_free (json_str);
+  json_node_unref (root);
   g_object_unref (gen);
   g_object_unref (builder);
 

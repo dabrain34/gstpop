@@ -25,17 +25,17 @@
 #define _GPOP_PRIVATE_H_
 
 #include <gio/gio.h>
-#include <glib-2.0/glib.h>
+#include <glib.h>
 
 #include "gpop-dbus-interface.h"
 #include "gpop-manager.h"
 #include "gpop-parser.h"
 #include "gpop-pipeline.h"
-#include "gst/gst.h"
+#include <gst/gst.h>
 
 
-#define GPOP_LOG(FMT, ARGS...) do { \
-      g_print(FMT "\n", ## ARGS); \
+#define GPOP_LOG(FMT, ...) do { \
+      g_print(FMT "\n", ##__VA_ARGS__); \
     } while (0)
 
 

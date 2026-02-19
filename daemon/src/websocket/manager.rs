@@ -17,7 +17,7 @@ use super::DEFAULT_PIPELINE_ID;
 
 /// Safely convert a serializable value to a JSON Value.
 /// Returns an internal error response if serialization fails (should never happen for well-typed structs).
-fn to_json_value<T: serde::Serialize>(id: String, value: &T) -> Response {
+fn to_json_value<T: serde::Serialize>(id: serde_json::Value, value: &T) -> Response {
     match serde_json::to_value(value) {
         Ok(v) => Response::success(id, v),
         Err(e) => {
@@ -59,14 +59,14 @@ impl ManagerInterface {
             "get_version" => self.get_version(request.id),
             "get_info" => self.get_info(request.id),
             "get_pipeline_count" => self.get_pipeline_count(request.id).await,
-            "get_elements" => self.get_elements(request),
+            "get_elements" => self.get_elements(request).await,
             // snapshot is handled separately in server.rs
             _ => Response::method_not_found(request.id, &request.method),
         }
     }
 
     /// Get the daemon version
-    fn get_version(&self, id: String) -> Response {
+    fn get_version(&self, id: serde_json::Value) -> Response {
         let result = VersionResult {
             version: env!("CARGO_PKG_VERSION").to_string(),
         };
@@ -74,7 +74,7 @@ impl ManagerInterface {
     }
 
     /// Get daemon and GStreamer version info
-    fn get_info(&self, id: String) -> Response {
+    fn get_info(&self, id: serde_json::Value) -> Response {
         let result = InfoResult {
             daemon_version: env!("CARGO_PKG_VERSION").to_string(),
             gstreamer_version: gstreamer::version_string().to_string(),
@@ -84,13 +84,13 @@ impl ManagerInterface {
     }
 
     /// Get the number of managed pipelines
-    async fn get_pipeline_count(&self, id: String) -> Response {
+    async fn get_pipeline_count(&self, id: serde_json::Value) -> Response {
         let count = self.manager.pipeline_count().await;
         let result = PipelineCountResult { count };
         to_json_value(id, &result)
     }
 
-    fn get_elements(&self, request: Request) -> Response {
+    async fn get_elements(&self, request: Request) -> Response {
         let params: GetElementsParams =
             serde_json::from_value(request.params).unwrap_or(GetElementsParams { detail: None });
 
@@ -100,12 +100,27 @@ impl ManagerInterface {
             Err(e) => return Response::invalid_params(request.id, e),
         };
 
-        let elements = crate::gst::registry::get_elements(detail);
+        // Registry iteration is CPU-bound; run off the async runtime
+        let elements =
+            match tokio::task::spawn_blocking(move || crate::gst::registry::get_elements(detail))
+                .await
+            {
+                Ok(elems) => elems,
+                Err(e) => {
+                    error!("get_elements task failed: {}", e);
+                    return Response::error(
+                        request.id,
+                        error_codes::INTERNAL_ERROR,
+                        "Registry query failed".to_string(),
+                    );
+                }
+            };
+
         let result = GetElementsResult { elements };
         to_json_value(request.id, &result)
     }
 
-    async fn list_pipelines(&self, id: String) -> Response {
+    async fn list_pipelines(&self, id: serde_json::Value) -> Response {
         let infos = self.manager.list_pipelines().await;
         let mut pipelines: Vec<PipelineInfoResult> =
             infos.into_iter().map(PipelineInfoResult::from).collect();

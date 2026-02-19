@@ -10,7 +10,6 @@ use gstreamer::prelude::*;
 use gstreamer::{self as gst, DebugGraphDetails};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
 use crate::error::{GpopError, Result};
@@ -112,18 +111,22 @@ impl Pipeline {
         })
     }
 
+    /// Get a reference to the underlying GStreamer pipeline as a GObject.
+    /// Used for bus message source comparison without requiring a mutex lock.
+    pub fn pipeline_object(&self) -> gst::Object {
+        self.pipeline.clone().upcast()
+    }
+
     /// Start the bus watcher task for this pipeline.
-    /// The bus, pipeline ID, event sender, and shutdown flag are extracted synchronously
-    /// before spawning to avoid race conditions with pipeline destruction.
+    /// The bus, pipeline ID, event sender, shutdown flag, and pipeline object are extracted
+    /// synchronously before spawning to avoid race conditions with pipeline destruction.
     pub fn start_bus_watch(
         bus: gst::Bus,
         id: String,
         event_tx: EventSender,
         shutdown_flag: Arc<AtomicBool>,
-        pipeline: Arc<Mutex<Self>>,
+        pipeline_obj: gst::Object,
     ) -> tokio::task::JoinHandle<()> {
-        let pipeline_clone = Arc::clone(&pipeline);
-
         tokio::spawn(async move {
             loop {
                 // Check shutdown flag first (use Acquire to synchronize with Release store)
@@ -162,21 +165,24 @@ impl Pipeline {
                     match msg.view() {
                         gst::MessageView::Error(err) => {
                             let gst_error = err.error();
-                            let error_msg =
-                                format!("{}: {}", gst_error, err.debug().unwrap_or_default());
+                            // Log full debug info (including C source paths) server-side only
+                            let debug_info = err.debug().unwrap_or_default();
+                            let full_msg = format!("{}: {}", gst_error, debug_info);
+                            // Only send the GError message to clients, not debug details
+                            let client_msg = gst_error.to_string();
 
                             // Check if this is a media-related error
                             let event = if is_media_not_supported_error(&gst_error).is_some() {
-                                warn!("Pipeline '{}' unsupported media: {}", id, error_msg);
+                                warn!("Pipeline '{}' unsupported media: {}", id, full_msg);
                                 PipelineEvent::Unsupported {
                                     pipeline_id: id.clone(),
-                                    message: error_msg,
+                                    message: client_msg,
                                 }
                             } else {
-                                error!("Pipeline '{}' error: {}", id, error_msg);
+                                error!("Pipeline '{}' error: {}", id, full_msg);
                                 PipelineEvent::Error {
                                     pipeline_id: id.clone(),
-                                    message: error_msg,
+                                    message: client_msg,
                                 }
                             };
 
@@ -210,8 +216,7 @@ impl Pipeline {
                         }
                         gst::MessageView::StateChanged(state_changed) => {
                             if let Some(src) = msg.src() {
-                                let p = pipeline_clone.lock().await;
-                                if src == p.pipeline.upcast_ref::<gst::Object>() {
+                                if *src == pipeline_obj {
                                     let old = PipelineState::from(state_changed.old());
                                     let new = PipelineState::from(state_changed.current());
                                     debug!("Pipeline '{}' state changed: {} -> {}", id, old, new);

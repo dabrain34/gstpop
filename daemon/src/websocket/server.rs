@@ -19,6 +19,7 @@ use tokio_tungstenite::tungstenite::handshake::server::{
     ErrorResponse, Request as WsRequest, Response as WsResponse,
 };
 use tokio_tungstenite::tungstenite::http::StatusCode;
+use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, error, info, warn};
 
@@ -29,6 +30,16 @@ use super::manager::ManagerInterface;
 use super::pipeline::SnapshotParams;
 use super::protocol::Request;
 use super::{CLIENT_MESSAGE_BUFFER, MAX_CONCURRENT_CLIENTS};
+
+/// Maximum WebSocket message/frame size (128 KB) to prevent memory exhaustion
+const MAX_WS_MESSAGE_SIZE: usize = 128 * 1024;
+
+fn ws_config() -> WebSocketConfig {
+    let mut config = WebSocketConfig::default();
+    config.max_message_size = Some(MAX_WS_MESSAGE_SIZE);
+    config.max_frame_size = Some(MAX_WS_MESSAGE_SIZE);
+    config
+}
 
 type ClientTx = mpsc::Sender<Message>;
 type ClientMap = Arc<RwLock<HashMap<SocketAddr, ClientTx>>>;
@@ -154,18 +165,6 @@ async fn handle_connection(
 ) {
     info!("New WebSocket connection from {}", addr);
 
-    // Check connection limit before accepting
-    {
-        let clients_map = clients.read().await;
-        if clients_map.len() >= MAX_CONCURRENT_CLIENTS {
-            warn!(
-                "Max clients ({}) reached, rejecting connection from {}",
-                MAX_CONCURRENT_CLIENTS, addr
-            );
-            return;
-        }
-    }
-
     // Accept WebSocket connection with optional API key and origin validation
     let ws_stream = if api_key.is_some() || allowed_origins.is_some() {
         let expected_key = api_key;
@@ -199,10 +198,16 @@ async fn handle_connection(
                     Some(value) => {
                         let provided = value.to_str().unwrap_or("").as_bytes();
                         let expected_bytes = expected.as_bytes();
-                        // Use constant-time comparison to prevent timing attacks
-                        if provided.len() == expected_bytes.len()
-                            && bool::from(provided.ct_eq(expected_bytes))
-                        {
+                        // Use constant-time comparison to prevent timing attacks.
+                        // Always perform a ct_eq to avoid leaking key length via timing.
+                        let is_valid = if provided.len() == expected_bytes.len() {
+                            bool::from(provided.ct_eq(expected_bytes))
+                        } else {
+                            // Perform a dummy comparison against expected to equalize timing
+                            let _ = bool::from(expected_bytes.ct_eq(expected_bytes));
+                            false
+                        };
+                        if is_valid {
                             return Ok(res);
                         } else {
                             let mut err = ErrorResponse::new(None);
@@ -220,7 +225,9 @@ async fn handle_connection(
 
             Ok(res)
         };
-        match tokio_tungstenite::accept_hdr_async(stream, callback).await {
+        match tokio_tungstenite::accept_hdr_async_with_config(stream, callback, Some(ws_config()))
+            .await
+        {
             Ok(ws) => ws,
             Err(e) => {
                 error!("WebSocket handshake failed for {}: {}", addr, e);
@@ -228,7 +235,7 @@ async fn handle_connection(
             }
         }
     } else {
-        match tokio_tungstenite::accept_async(stream).await {
+        match tokio_tungstenite::accept_async_with_config(stream, Some(ws_config())).await {
             Ok(ws) => ws,
             Err(e) => {
                 error!("WebSocket handshake failed for {}: {}", addr, e);
@@ -240,9 +247,16 @@ async fn handle_connection(
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
     let (tx, mut rx) = mpsc::channel::<Message>(CLIENT_MESSAGE_BUFFER);
 
-    // Register client
+    // Register client (with limit check under single write lock to prevent TOCTOU)
     {
         let mut clients_map = clients.write().await;
+        if clients_map.len() >= MAX_CONCURRENT_CLIENTS {
+            warn!(
+                "Max clients ({}) reached, rejecting connection from {}",
+                MAX_CONCURRENT_CLIENTS, addr
+            );
+            return;
+        }
         clients_map.insert(addr, tx);
     }
 
@@ -271,12 +285,12 @@ async fn handle_connection(
                         // Try to extract the ID from malformed JSON for better error correlation
                         let id = serde_json::from_str::<serde_json::Value>(&text)
                             .ok()
-                            .and_then(|v| v.get("id").and_then(|id| id.as_str()).map(String::from))
-                            .unwrap_or_else(|| "unknown".to_string());
+                            .and_then(|v| v.get("id").cloned())
+                            .unwrap_or(serde_json::Value::Null);
 
                         let response = super::protocol::Response::parse_error(
                             id,
-                            format!("Parse error: {}", e),
+                            "Invalid JSON-RPC request".to_string(),
                         );
                         let response_json = serialize_or_error(&response);
                         let clients_map = clients.read().await;
@@ -287,18 +301,25 @@ async fn handle_connection(
                     }
                 };
 
-                // Handle snapshot specially - returns direct response without JSON-RPC wrapper
+                // Handle snapshot specially (different params extraction)
                 let response_json = if request.method == "snapshot" {
                     let params: SnapshotParams =
                         serde_json::from_value(request.params).unwrap_or_default();
-                    match handler.snapshot(params).await {
-                        Ok(result) => serialize_or_error(&result),
-                        Err(e) => {
-                            let response =
-                                super::protocol::Response::from_gpop_error(request.id, &e);
-                            serialize_or_error(&response)
-                        }
-                    }
+                    let response = match handler.snapshot(params).await {
+                        Ok(result) => match serde_json::to_value(&result) {
+                            Ok(v) => super::protocol::Response::success(request.id, v),
+                            Err(e) => {
+                                error!("JSON serialization failed: {}", e);
+                                super::protocol::Response::error(
+                                    request.id,
+                                    super::protocol::error_codes::INTERNAL_ERROR,
+                                    "Internal serialization error".to_string(),
+                                )
+                            }
+                        },
+                        Err(e) => super::protocol::Response::from_gpop_error(request.id, &e),
+                    };
+                    serialize_or_error(&response)
                 } else {
                     let response = handler.handle(request).await;
                     serialize_or_error(&response)

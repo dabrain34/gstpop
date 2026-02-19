@@ -31,7 +31,7 @@ G_DEFINE_TYPE (GPOPManager, gpop_manager, GPOP_TYPE_DBUS_INTERFACE);
 const char gpop_manager_xml_introspection[] =
     "<?xml version='1.0' encoding='UTF-8' ?>"
     "<node>"
-    "    <interface name='org.gpop.GPOPInterface'>"
+    "    <interface name='org.gpop.Manager'>"
     "        <method name='GetPipelineDesc'>"
     "		<arg type='s' name='id' direction='in'/>"
     "		<arg type='s' name='desc' direction='out'/>"
@@ -117,7 +117,7 @@ gpop_manager_dbus_get_property (GDBusConnection * connection,
   if (!g_strcmp0 (property_name, "Pipelines")) {
     ret = g_variant_new ("i", g_list_length (manager->pipelines));
   } else if (!g_strcmp0 (property_name, "Version")) {
-    ret = g_variant_new ("s", "0.0.1");
+    ret = g_variant_new ("s", "0.2.0");
   }
   return ret;
 }
@@ -130,7 +130,9 @@ gpop_manager_dbus_set_property (GDBusConnection * connection,
     const gchar * property_name,
     GVariant * value, GError ** error, gpointer user_data)
 {
-  return *error == NULL;
+  g_set_error (error, G_DBUS_ERROR, G_DBUS_ERROR_PROPERTY_READ_ONLY,
+      "Property '%s' is read-only", property_name);
+  return FALSE;
 }
 
 static void

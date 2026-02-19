@@ -43,7 +43,11 @@ impl ManagerInterface {
         let detail_level = detail
             .parse::<crate::gst::registry::DetailLevel>()
             .map_err(zbus::fdo::Error::Failed)?;
-        let elements = crate::gst::registry::get_elements(detail_level);
+        // Registry iteration is CPU-bound; run off the async runtime
+        let elements =
+            tokio::task::spawn_blocking(move || crate::gst::registry::get_elements(detail_level))
+                .await
+                .map_err(|e| zbus::fdo::Error::Failed(format!("Registry query failed: {}", e)))?;
         serde_json::to_string(&elements).map_err(|e| zbus::fdo::Error::Failed(e.to_string()))
     }
 

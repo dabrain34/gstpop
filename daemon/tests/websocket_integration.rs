@@ -46,11 +46,16 @@ mod protocol_validation_tests {
     use gpop::websocket::protocol::{error_codes, Request, Response, JSONRPC_VERSION};
 
     #[test]
-    fn test_request_requires_id_field() {
-        // JSON-RPC 2.0 requires 'id' for requests expecting a response
+    fn test_request_without_id_is_notification() {
+        // JSON-RPC 2.0: missing id = notification (id defaults to null)
         let json = r#"{"method":"list_pipelines"}"#;
         let result: Result<Request, _> = serde_json::from_str(json);
-        assert!(result.is_err(), "Request should fail without 'id' field");
+        assert!(
+            result.is_ok(),
+            "Request without 'id' should parse as notification"
+        );
+        let request = result.unwrap();
+        assert!(request.id.is_null());
     }
 
     #[test]
@@ -71,17 +76,19 @@ mod protocol_validation_tests {
         assert!(result.is_ok(), "Valid request should parse successfully");
 
         let request = result.unwrap();
-        assert_eq!(request.id, "123");
+        assert_eq!(request.id, serde_json::json!("123"));
         assert_eq!(request.method, "list_pipelines");
         assert_eq!(request.jsonrpc, JSONRPC_VERSION);
     }
 
     #[test]
     fn test_response_success_format() {
-        let response =
-            Response::success("test-id".to_string(), serde_json::json!({"data": "value"}));
+        let response = Response::success(
+            serde_json::json!("test-id"),
+            serde_json::json!({"data": "value"}),
+        );
 
-        assert_eq!(response.id, "test-id");
+        assert_eq!(response.id, serde_json::json!("test-id"));
         assert_eq!(response.jsonrpc, JSONRPC_VERSION);
         assert!(response.result.is_some());
         assert!(response.error.is_none());
@@ -94,12 +101,12 @@ mod protocol_validation_tests {
     #[test]
     fn test_response_error_format() {
         let response = Response::error(
-            "test-id".to_string(),
+            serde_json::json!("test-id"),
             error_codes::INVALID_REQUEST,
             "Missing field".to_string(),
         );
 
-        assert_eq!(response.id, "test-id");
+        assert_eq!(response.id, serde_json::json!("test-id"));
         assert!(response.error.is_some());
         assert!(response.result.is_none());
 
@@ -114,7 +121,7 @@ mod protocol_validation_tests {
     #[test]
     fn test_invalid_request_helper() {
         let response = Response::invalid_request(
-            "req-1".to_string(),
+            serde_json::json!("req-1"),
             "Missing required field: method".to_string(),
         );
 

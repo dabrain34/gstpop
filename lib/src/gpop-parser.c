@@ -196,6 +196,10 @@ static void
 gpop_parser_destroy (GPOPParser * parser)
 {
   GST_INFO_OBJECT (parser, "About to destroy the parser");
+  if (parser->bus) {
+    gst_bus_remove_signal_watch (parser->bus);
+    g_clear_object (&parser->bus);
+  }
   if (parser->pipeline) {
     gpop_parser_set_player_state (parser, GST_STATE_NULL);
     g_object_unref (parser->pipeline);
@@ -210,6 +214,8 @@ gpop_parser_dispose (GObject * object)
   GPOPParser *parser = GPOP_PARSER (object);
   gpop_parser_destroy (parser);
   g_clear_object (&parser->bus);
+
+  G_OBJECT_CLASS (gpop_parser_parent_class)->dispose (object);
 }
 
 static void
@@ -243,7 +249,8 @@ gpop_parser_new ()
 void
 gpop_parser_free (GPOPParser * parser)
 {
-  gpop_parser_quit(parser);
+  if (parser)
+    gpop_parser_quit (parser);
   g_clear_object (&parser);
 }
 
@@ -273,6 +280,8 @@ gpop_parser_create (GPOPParser * parser, const gchar * parser_desc)
     GST_ERROR_OBJECT (parser,
         "Unable to instantiate the pipeline with message '%s'", err->message);
     g_error_free (err);
+    /* Clean up the pipeline allocated above to avoid a leak */
+    g_clear_object (&parser->pipeline);
     return FALSE;
   }
 
@@ -281,7 +290,8 @@ gpop_parser_create (GPOPParser * parser, const gchar * parser_desc)
   bus = gst_pipeline_get_bus (GST_PIPELINE (parser->pipeline));
   g_signal_connect (G_OBJECT (bus), "message", G_CALLBACK (message_cb), parser);
   gst_bus_add_signal_watch (bus);
-  gst_object_unref (GST_OBJECT (bus));
+  /* Store bus in struct so we can remove the signal watch in destroy */
+  parser->bus = bus;
 
   return TRUE;
 }

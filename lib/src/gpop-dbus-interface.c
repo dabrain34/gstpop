@@ -104,7 +104,7 @@ gpop_dbus_interface_dispose (GObject * object)
     g_dbus_connection_unregister_object (iface->connection, iface->object_id);
     iface->object_id = 0;
   }
-  iface->connection = NULL;
+  g_clear_object (&iface->connection);
   g_clear_pointer (&iface->object_path, g_free);
   g_clear_pointer (&iface->introspection_data, g_dbus_node_info_unref);
 
@@ -140,10 +140,6 @@ gpop_dbus_interface_register (GPOPDBusInterface * iface,
 
   iface->object_path = g_strdup (object_path);
 
-
-  g_print ("object_path: %s\n", iface->object_path);
-
-
   iface->object_id = g_dbus_connection_register_object (connection, iface->object_path, iface->introspection_data->interfaces[0], &interface_vtable, iface,     /* user_data */
       NULL,                     /* user_data_free_func */
       NULL);                    /* GError** */
@@ -151,8 +147,7 @@ gpop_dbus_interface_register (GPOPDBusInterface * iface,
   if (!iface->object_id)
     return FALSE;
 
-
-  iface->connection = connection;
+  iface->connection = g_object_ref (connection);
 
   return TRUE;
 }
