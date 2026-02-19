@@ -60,6 +60,10 @@ struct Args {
     /// If not specified, all origins are allowed. Use for CSRF protection in browser contexts.
     #[arg(long = "allowed-origin")]
     allowed_origins: Vec<String>,
+
+    /// Inspect GStreamer elements and exit (detail: none, summary, full)
+    #[arg(short = 'i', long, value_name = "DETAIL")]
+    inspect: Option<String>,
 }
 
 #[tokio::main]
@@ -86,6 +90,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if args.no_dbus && args.no_websocket {
         error!("At least one interface (DBus or WebSocket) must be enabled");
         std::process::exit(1);
+    }
+
+    // Handle --inspect early: initialize GStreamer, print elements, and exit
+    if let Some(detail_str) = &args.inspect {
+        gstreamer::init()?;
+        let detail = detail_str
+            .parse::<gpop::gst::registry::DetailLevel>()
+            .unwrap_or_else(|e| {
+                error!("{}", e);
+                std::process::exit(1);
+            });
+        let elements = gpop::gst::registry::get_elements(detail);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&elements).expect("JSON serialization failed")
+        );
+        return Ok(());
     }
 
     // Initialize GStreamer

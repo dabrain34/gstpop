@@ -9,6 +9,7 @@
 pub mod event;
 pub mod manager;
 pub mod pipeline;
+pub mod registry;
 
 pub use event::{create_event_channel, EventReceiver, EventSender, PipelineEvent, PipelineState};
 pub use manager::{PipelineInfo, PipelineManager};
@@ -31,3 +32,6 @@ mod pipeline_tests;
 
 #[cfg(test)]
 mod playback_mode_tests;
+
+#[cfg(test)]
+mod registry_tests;

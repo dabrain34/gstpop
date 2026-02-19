@@ -49,6 +49,7 @@ print_help (void)
     g_print ("  version                   - Get daemon version\n");
     g_print ("  sysinfo                   - Get daemon and GStreamer info\n");
     g_print ("  count                     - Get pipeline count\n");
+    g_print ("  elements [detail]         - List GStreamer elements (detail: none, summary, full)\n");
     g_print ("  help                      - Show this help\n");
     g_print ("  quit                      - Exit\n");
     g_print ("\n");
@@ -189,6 +190,10 @@ process_command (AppContext *ctx, const gchar *line)
     }
     else if (g_strcmp0 (cmd, "count") == 0) {
         request_id = gpop_client_get_pipeline_count (ctx->client);
+    }
+    else if (g_strcmp0 (cmd, "elements") == 0) {
+        const gchar *detail = (argc > 1) ? parts[1] : NULL;
+        request_id = gpop_client_get_elements (ctx->client, detail);
     }
     else if (g_strcmp0 (cmd, "help") == 0) {
         print_help ();

@@ -195,3 +195,14 @@ pub struct InfoResult {
 pub struct PipelineCountResult {
     pub count: usize,
 }
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GetElementsParams {
+    #[serde(default)]
+    pub detail: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GetElementsResult {
+    pub elements: Vec<crate::gst::registry::ElementInfo>,
+}

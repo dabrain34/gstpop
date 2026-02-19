@@ -549,3 +549,17 @@ gpop_client_get_pipeline_count (GPOPClient *client)
 {
   return gpop_client_send_request (client, "get_pipeline_count", NULL);
 }
+
+gchar *
+gpop_client_get_elements (GPOPClient *client, const gchar *detail)
+{
+  JsonObject *params = NULL;
+  if (detail) {
+    params = json_object_new ();
+    json_object_set_string_member (params, "detail", detail);
+  }
+  gchar *id = gpop_client_send_request (client, "get_elements", params);
+  if (params)
+    json_object_unref (params);
+  return id;
+}
