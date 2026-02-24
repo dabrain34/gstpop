@@ -62,8 +62,16 @@ struct Args {
     allowed_origins: Vec<String>,
 
     /// Inspect GStreamer elements and exit (detail: none, summary, full)
-    #[arg(short = 'i', long, value_name = "DETAIL")]
+    #[arg(short = 'i', long, value_name = "DETAIL", conflicts_with_all = ["discover", "pipelines", "playback_mode"])]
     inspect: Option<String>,
+
+    /// Discover media information for a URI and exit
+    #[arg(short = 'd', long, value_name = "URI", conflicts_with_all = ["inspect", "pipelines", "playback_mode"])]
+    discover: Option<String>,
+
+    /// Timeout in seconds for URI discovery (used with --discover)
+    #[arg(long, default_value_t = gpop::gst::discoverer::DEFAULT_TIMEOUT_SECS)]
+    discover_timeout: u32,
 }
 
 #[tokio::main]
@@ -114,6 +122,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if args.no_websocket {
         error!("WebSocket is the only available interface on this platform");
         std::process::exit(1);
+    }
+    // Handle --discover early: initialize GStreamer, discover URI, print info, and exit
+    if let Some(uri) = &args.discover {
+        gstreamer::init()?;
+        match gpop::gst::discoverer::discover_uri(uri, Some(args.discover_timeout)) {
+            Ok(info) => {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&info).expect("JSON serialization failed")
+                );
+            }
+            Err(e) => {
+                error!("Discovery failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
     }
 
     // Initialize GStreamer
@@ -339,4 +364,77 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::Args;
+    use clap::{CommandFactory, Parser};
+
+    #[test]
+    fn verify_cli() {
+        Args::command().debug_assert();
+    }
+
+    #[test]
+    fn inspect_conflicts_with_discover() {
+        let result = Args::try_parse_from([
+            "gpop-rs",
+            "--inspect",
+            "full",
+            "--discover",
+            "file:///test.mp4",
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn inspect_conflicts_with_pipeline() {
+        let result = Args::try_parse_from([
+            "gpop-rs",
+            "--inspect",
+            "full",
+            "-p",
+            "videotestsrc ! fakesink",
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn inspect_conflicts_with_playback_mode() {
+        let result = Args::try_parse_from([
+            "gpop-rs",
+            "--inspect",
+            "full",
+            "--playback-mode",
+            "-p",
+            "videotestsrc ! fakesink",
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn discover_conflicts_with_pipeline() {
+        let result = Args::try_parse_from([
+            "gpop-rs",
+            "--discover",
+            "file:///test.mp4",
+            "-p",
+            "videotestsrc ! fakesink",
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn discover_conflicts_with_playback_mode() {
+        let result = Args::try_parse_from([
+            "gpop-rs",
+            "--discover",
+            "file:///test.mp4",
+            "--playback-mode",
+            "-p",
+            "videotestsrc ! fakesink",
+        ]);
+        assert!(result.is_err());
+    }
 }
