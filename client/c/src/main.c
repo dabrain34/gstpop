@@ -50,6 +50,7 @@ print_help (void)
     g_print ("  sysinfo                   - Get daemon and GStreamer info\n");
     g_print ("  count                     - Get pipeline count\n");
     g_print ("  elements [detail]         - List GStreamer elements (detail: none, summary, full)\n");
+    g_print ("  discover <uri> [timeout]  - Discover media info for a URI\n");
     g_print ("  help                      - Show this help\n");
     g_print ("  quit                      - Exit\n");
     g_print ("\n");
@@ -194,6 +195,13 @@ process_command (AppContext *ctx, const gchar *line)
     else if (g_strcmp0 (cmd, "elements") == 0) {
         const gchar *detail = (argc > 1) ? parts[1] : NULL;
         request_id = gpop_client_get_elements (ctx->client, detail);
+    }
+    else if (g_strcmp0 (cmd, "discover") == 0 && argc >= 2) {
+        guint timeout = 0;
+        if (argc > 2) {
+            timeout = (guint) g_ascii_strtoull (parts[2], NULL, 10);
+        }
+        request_id = gpop_client_discover_uri (ctx->client, parts[1], timeout);
     }
     else if (g_strcmp0 (cmd, "help") == 0) {
         print_help ();

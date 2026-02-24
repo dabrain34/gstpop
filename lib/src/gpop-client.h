@@ -107,6 +107,7 @@ gchar *gpop_client_get_version (GPOPClient *client);
 gchar *gpop_client_get_info (GPOPClient *client);
 gchar *gpop_client_get_pipeline_count (GPOPClient *client);
 gchar *gpop_client_get_elements (GPOPClient *client, const gchar *detail);
+gchar *gpop_client_discover_uri (GPOPClient *client, const gchar *uri, guint timeout);
 
 /* Utility functions */
 gchar *gpop_json_to_pretty_string (JsonNode *node);
