@@ -76,7 +76,10 @@ gpop_pipeline_dbus_set_property (GDBusConnection * connection,
     const gchar * property_name,
     GVariant * value, GError ** error, gpointer user_data)
 {
-  return *error == NULL;
+  /* All properties are read-only */
+  g_set_error (error, G_DBUS_ERROR, G_DBUS_ERROR_PROPERTY_READ_ONLY,
+      "Property '%s' is read-only", property_name);
+  return FALSE;
 }
 
 static void
@@ -169,8 +172,7 @@ gpop_pipeline_set_parser_desc (GPOPPipeline * pipeline, const gchar * parser_des
   _gpop_pipeline_clear_desc (pipeline);
 
   pipeline->parser_desc = g_strdup (parser_desc);
-  gpop_parser_play (pipeline->parser, pipeline->parser_desc);
-  return TRUE;
+  return gpop_parser_play (pipeline->parser, pipeline->parser_desc);
 }
 
 gboolean

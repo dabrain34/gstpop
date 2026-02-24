@@ -80,7 +80,7 @@ on_bus_acquired (GDBusConnection * connection,
   /* Add hardcoded edge to the manager */
   for (pipeline_desc = app->pipeline_desc_array;
       pipeline_desc != NULL && *pipeline_desc != NULL; ++pipeline_desc) {
-    gpop_manager_add_pipeline (app->manager, i++, NULL, *pipeline_desc);
+    gpop_manager_add_pipeline (app->manager, i++, *pipeline_desc, NULL);
   }
 }
 

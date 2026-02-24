@@ -54,7 +54,7 @@ fn default_jsonrpc_version() -> String {
 /// JSON-RPC 2.0 Request object.
 ///
 /// Per the JSON-RPC 2.0 specification:
-/// - `id` is required for requests expecting a response
+/// - `id` can be a String, Number, or Null; omitted for notifications
 /// - `method` is required and specifies the method to invoke
 /// - `jsonrpc` should be "2.0" (defaults if omitted for compatibility)
 /// - `params` is optional
@@ -63,8 +63,10 @@ pub struct Request {
     /// JSON-RPC version (should be "2.0")
     #[serde(default = "default_jsonrpc_version")]
     pub jsonrpc: String,
-    /// Request identifier - required per JSON-RPC 2.0 spec
-    pub id: String,
+    /// Request identifier — String, Number, or Null per JSON-RPC 2.0.
+    /// Defaults to Null if omitted (notification).
+    #[serde(default)]
+    pub id: Value,
     /// Method name to invoke - required per JSON-RPC 2.0 spec
     pub method: String,
     #[serde(default)]
@@ -75,7 +77,8 @@ pub struct Request {
 pub struct Response {
     /// JSON-RPC version (always "2.0")
     pub jsonrpc: &'static str,
-    pub id: String,
+    /// Echoed request id — String, Number, or Null per JSON-RPC 2.0
+    pub id: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -89,7 +92,7 @@ pub struct ErrorInfo {
 }
 
 impl Response {
-    pub fn success(id: String, result: Value) -> Self {
+    pub fn success(id: Value, result: Value) -> Self {
         Self {
             jsonrpc: JSONRPC_VERSION,
             id,
@@ -98,7 +101,7 @@ impl Response {
         }
     }
 
-    pub fn error(id: String, code: i32, message: String) -> Self {
+    pub fn error(id: Value, code: i32, message: String) -> Self {
         Self {
             jsonrpc: JSONRPC_VERSION,
             id,
@@ -108,17 +111,17 @@ impl Response {
     }
 
     /// Create a parse error response
-    pub fn parse_error(id: String, message: String) -> Self {
+    pub fn parse_error(id: Value, message: String) -> Self {
         Self::error(id, error_codes::PARSE_ERROR, message)
     }
 
     /// Create an invalid request error response (missing required fields)
-    pub fn invalid_request(id: String, message: String) -> Self {
+    pub fn invalid_request(id: Value, message: String) -> Self {
         Self::error(id, error_codes::INVALID_REQUEST, message)
     }
 
     /// Create a method not found error response
-    pub fn method_not_found(id: String, method: &str) -> Self {
+    pub fn method_not_found(id: Value, method: &str) -> Self {
         Self::error(
             id,
             error_codes::METHOD_NOT_FOUND,
@@ -127,12 +130,12 @@ impl Response {
     }
 
     /// Create an invalid params error response
-    pub fn invalid_params(id: String, message: String) -> Self {
+    pub fn invalid_params(id: Value, message: String) -> Self {
         Self::error(id, error_codes::INVALID_PARAMS, message)
     }
 
     /// Create a pipeline not found error response
-    pub fn pipeline_not_found(id: String, pipeline_id: &str) -> Self {
+    pub fn pipeline_not_found(id: Value, pipeline_id: &str) -> Self {
         Self::error(
             id,
             error_codes::PIPELINE_NOT_FOUND,
@@ -141,7 +144,7 @@ impl Response {
     }
 
     /// Create a server error response from a GpopError
-    pub fn from_gpop_error(id: String, err: &crate::error::GpopError) -> Self {
+    pub fn from_gpop_error(id: Value, err: &crate::error::GpopError) -> Self {
         use crate::error::GpopError;
 
         let (code, message) = match err {
@@ -153,7 +156,7 @@ impl Response {
             GpopError::StateChangeFailed(msg) => (error_codes::STATE_CHANGE_FAILED, msg.clone()),
             GpopError::MediaNotSupported(msg) => (error_codes::MEDIA_NOT_SUPPORTED, msg.clone()),
             GpopError::GStreamer(msg) => (error_codes::GSTREAMER_ERROR, msg.clone()),
-            _ => (error_codes::INTERNAL_ERROR, err.to_string()),
+            _ => (error_codes::INTERNAL_ERROR, "Internal error".to_string()),
         };
 
         Self::error(id, code, message)

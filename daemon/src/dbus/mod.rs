@@ -10,6 +10,7 @@ pub mod manager;
 pub mod pipeline;
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
@@ -30,7 +31,7 @@ pub struct DbusServer {
     /// Maps pipeline_id -> DBus object index
     pipeline_indices: RwLock<HashMap<String, u32>>,
     /// Next index to use for a new pipeline
-    next_index: RwLock<u32>,
+    next_index: AtomicU32,
 }
 
 impl DbusServer {
@@ -52,18 +53,12 @@ impl DbusServer {
             connection,
             manager,
             pipeline_indices: RwLock::new(HashMap::new()),
-            next_index: RwLock::new(0),
+            next_index: AtomicU32::new(0),
         })
     }
 
     pub async fn register_pipeline(&self, pipeline_id: &str) -> Result<()> {
-        // Get the next index atomically
-        let index = {
-            let mut next = self.next_index.write().await;
-            let index = *next;
-            *next += 1;
-            index
-        };
+        let index = self.next_index.fetch_add(1, Ordering::Relaxed);
 
         let pipeline_interface =
             PipelineInterface::new(Arc::clone(&self.manager), pipeline_id.to_string());

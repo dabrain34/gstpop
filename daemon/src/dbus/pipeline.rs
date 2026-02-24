@@ -84,8 +84,13 @@ impl PipelineInterface {
             .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
 
         // Convert Option<u64> to i64, using -1 for None
-        let pos = position.map(|p| p as i64).unwrap_or(-1);
-        let dur = duration.map(|d| d as i64).unwrap_or(-1);
+        // Use try_from to avoid silent overflow for values above i64::MAX
+        let pos = position
+            .map(|p| i64::try_from(p).unwrap_or(i64::MAX))
+            .unwrap_or(-1);
+        let dur = duration
+            .map(|d| i64::try_from(d).unwrap_or(i64::MAX))
+            .unwrap_or(-1);
         Ok((pos, dur))
     }
 
@@ -155,6 +160,7 @@ impl PipelineInterface {
     }
 
     pub fn object_path(index: u32) -> ObjectPath<'static> {
-        ObjectPath::try_from(format!("/org/gpop/Pipeline{}", index)).unwrap()
+        ObjectPath::try_from(format!("/org/gpop/Pipeline{}", index))
+            .expect("u32 index always produces valid D-Bus object path")
     }
 }

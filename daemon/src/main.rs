@@ -14,7 +14,7 @@ use clap::Parser;
 use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
-use gpop::gst::PipelineEvent;
+use gpop::playback::PlaybackTracker;
 
 #[cfg(target_os = "linux")]
 use gpop::dbus::{run_dbus_event_forwarder, DbusServer};
@@ -53,7 +53,7 @@ struct Args {
     no_websocket: bool,
 
     /// API key for WebSocket authentication (optional)
-    #[arg(long, env = "GPOP_API_KEY")]
+    #[arg(long, env = "GPOP_API_KEY", hide_env_values = true)]
     api_key: Option<String>,
 
     /// Allowed origins for WebSocket connections (optional, can be specified multiple times)
@@ -107,6 +107,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             serde_json::to_string_pretty(&elements).expect("JSON serialization failed")
         );
         return Ok(());
+    }
+
+    // On non-Linux, WebSocket is the only interface — disabling it is invalid
+    #[cfg(not(target_os = "linux"))]
+    if args.no_websocket {
+        error!("WebSocket is the only available interface on this platform");
+        std::process::exit(1);
     }
 
     // Initialize GStreamer
@@ -199,6 +206,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         let ws_event_rx = event_tx.subscribe();
 
+        // Safety check: warn or refuse non-loopback binding without API key
+        let is_loopback = addr.ip().is_loopback();
+        if !is_loopback && args.api_key.is_none() {
+            warn!(
+                "Binding to non-loopback address {} without --api-key is insecure. \
+                 Set GPOP_API_KEY or use --api-key to require authentication.",
+                addr
+            );
+        }
+        if !is_loopback && args.api_key.is_some() {
+            warn!(
+                "API key is transmitted in plaintext over ws://{}. \
+                 Consider using a TLS-terminating reverse proxy for production.",
+                addr
+            );
+        }
+
         if args.api_key.is_some() {
             info!("WebSocket API key authentication enabled");
         }
@@ -216,139 +240,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
 
-    // Exit codes matching GStreamer convention (gst-launch MR !10088)
-    const EXIT_CODE_ERROR: i32 = 1;
-    const EXIT_CODE_UNSUPPORTED: i32 = 69; // EX_UNAVAILABLE
-
     // Set up playback mode EOS tracking
     let playback_done: Option<tokio::sync::oneshot::Receiver<i32>> = if args.playback_mode {
-        let mut event_rx = playback_event_rx.expect("playback_event_rx set when playback_mode");
+        let event_rx = playback_event_rx.expect("playback_event_rx set when playback_mode");
         let (done_tx, done_rx) = tokio::sync::oneshot::channel::<i32>();
 
-        let mut pending: HashSet<String> = initial_pipeline_ids
-            .iter()
-            .filter(|id| !playback_failed_ids.contains(*id))
-            .cloned()
-            .collect();
-
-        let had_error_initially = !playback_failed_ids.is_empty();
-        let started_count = pending.len();
-        let tracker_manager = Arc::clone(&manager);
+        let tracker = PlaybackTracker::new(
+            &initial_pipeline_ids,
+            &playback_failed_ids,
+            Arc::clone(&manager),
+        );
 
         tokio::spawn(async move {
-            let mut had_error = had_error_initially;
-            let mut had_unsupported = false;
-
-            // If all pipelines already failed to play, signal immediately
-            if pending.is_empty() {
-                info!("Playback mode: all pipelines failed to start");
-                let _ = done_tx.send(EXIT_CODE_ERROR);
-                return;
-            }
-
-            loop {
-                match event_rx.recv().await {
-                    Ok(event) => match &event {
-                        PipelineEvent::Eos { pipeline_id } => {
-                            if pending.remove(pipeline_id) {
-                                info!(
-                                    "Playback mode: pipeline '{}' reached EOS ({}/{} remaining)",
-                                    pipeline_id,
-                                    pending.len(),
-                                    started_count
-                                );
-                            }
-                        }
-                        PipelineEvent::Error {
-                            pipeline_id,
-                            message,
-                        } => {
-                            if pending.remove(pipeline_id) {
-                                had_error = true;
-                                warn!(
-                                    "Playback mode: pipeline '{}' errored: {} ({}/{} remaining)",
-                                    pipeline_id,
-                                    message,
-                                    pending.len(),
-                                    started_count
-                                );
-                            }
-                        }
-                        PipelineEvent::Unsupported {
-                            pipeline_id,
-                            message,
-                        } => {
-                            if pending.remove(pipeline_id) {
-                                had_unsupported = true;
-                                warn!(
-                                    "Playback mode: pipeline '{}' unsupported: {} ({}/{} remaining)",
-                                    pipeline_id,
-                                    message,
-                                    pending.len(),
-                                    started_count
-                                );
-                            }
-                        }
-                        PipelineEvent::PipelineRemoved { pipeline_id } => {
-                            if pending.remove(pipeline_id) {
-                                had_error = true;
-                                warn!(
-                                    "Playback mode: tracked pipeline '{}' was removed externally ({}/{} remaining)",
-                                    pipeline_id,
-                                    pending.len(),
-                                    started_count
-                                );
-                            }
-                        }
-                        _ => {}
-                    },
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                        warn!(
-                            "Playback mode: event tracker lagged by {} messages, reconciling",
-                            n
-                        );
-                        // Reconcile: remove pipelines that no longer exist in the manager
-                        let gone: Vec<String> = {
-                            let mut removed = Vec::new();
-                            for id in &pending {
-                                if tracker_manager.get_pipeline_info(id).await.is_err() {
-                                    removed.push(id.clone());
-                                }
-                            }
-                            removed
-                        };
-                        for id in gone {
-                            pending.remove(&id);
-                            had_error = true;
-                            warn!(
-                                "Playback mode: pipeline '{}' no longer exists after lag ({}/{} remaining)",
-                                id,
-                                pending.len(),
-                                started_count
-                            );
-                        }
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                        warn!("Playback mode: event channel closed before all pipelines finished");
-                        had_error = true;
-                        pending.clear();
-                    }
-                }
-
-                if pending.is_empty() {
-                    info!("Playback mode: all pipelines finished");
-                    // Error takes priority over Unsupported
-                    let code = if had_error {
-                        EXIT_CODE_ERROR
-                    } else if had_unsupported {
-                        EXIT_CODE_UNSUPPORTED
-                    } else {
-                        0
-                    };
-                    let _ = done_tx.send(code);
-                    return;
-                }
-            }
+            let code = tracker.run(event_rx).await;
+            let _ = done_tx.send(code);
         });
 
         Some(done_rx)
@@ -384,10 +289,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         #[cfg(not(unix))]
         {
-            tokio::signal::ctrl_c()
-                .await
-                .expect("failed to listen for Ctrl+C");
-            info!("Received Ctrl+C");
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                error!("Failed to listen for Ctrl+C: {}", e);
+            } else {
+                info!("Received Ctrl+C");
+            }
         }
     };
 

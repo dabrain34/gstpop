@@ -11,9 +11,11 @@ gst_req_version = '>= 1.16.0'
 glib_dep = dependency('glib-2.0', version: glib_req_version,
     fallback: ['glib', 'libglib_dep'])
 gio_dep = [dependency('gio-2.0', version: glib_req_version,
-                  fallback: ['glib', 'libgio_dep']),
-           dependency('gio-unix-2.0', version: glib_req_version,
                   fallback: ['glib', 'libgio_dep'])]
+if host_machine.system() != 'windows'
+  gio_dep += dependency('gio-unix-2.0', version: glib_req_version,
+                  fallback: ['glib', 'libgio_dep'])
+endif
 gobject_dep = dependency('gobject-2.0', version: glib_req_version,
     fallback: ['glib', 'libgobject_dep'])
 
