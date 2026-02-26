@@ -60,6 +60,7 @@ impl ManagerInterface {
             "get_info" => self.get_info(request.id),
             "get_pipeline_count" => self.get_pipeline_count(request.id).await,
             "get_elements" => self.get_elements(request).await,
+            "discover_uri" => self.discover_uri(request).await,
             // snapshot is handled separately in server.rs
             _ => Response::method_not_found(request.id, &request.method),
         }
@@ -118,6 +119,35 @@ impl ManagerInterface {
 
         let result = GetElementsResult { elements };
         to_json_value(request.id, &result)
+    }
+
+    async fn discover_uri(&self, request: Request) -> Response {
+        let params: DiscoverUriParams = match serde_json::from_value(request.params) {
+            Ok(p) => p,
+            Err(e) => {
+                return Response::invalid_params(request.id, format!("Invalid params: {}", e))
+            }
+        };
+
+        let uri = params.uri;
+        let timeout = params.timeout;
+
+        match tokio::task::spawn_blocking(move || {
+            crate::gst::discoverer::discover_uri(&uri, timeout)
+        })
+        .await
+        {
+            Ok(Ok(info)) => {
+                let result = DiscoverUriResult { info };
+                to_json_value(request.id, &result)
+            }
+            Ok(Err(e)) => Response::from_gpop_error(request.id, &e),
+            Err(e) => Response::error(
+                request.id,
+                error_codes::INTERNAL_ERROR,
+                format!("Discovery task failed: {}", e),
+            ),
+        }
     }
 
     async fn list_pipelines(&self, id: serde_json::Value) -> Response {

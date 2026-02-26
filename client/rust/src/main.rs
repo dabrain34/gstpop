@@ -63,6 +63,7 @@ fn print_help() {
     println!("  sysinfo                  - Get daemon and GStreamer info");
     println!("  count                    - Get pipeline count");
     println!("  elements [detail]        - List GStreamer elements (detail: none, summary, full)");
+    println!("  discover <uri> [timeout] - Discover media info for a URI");
     println!("  help                     - Show this help");
     println!("  quit                     - Exit");
     println!();
@@ -173,6 +174,14 @@ fn parse_command(line: &str) -> Option<Request> {
             method: "get_elements".to_string(),
             params: serde_json::json!({
                 "detail": parts.get(1).copied()
+            }),
+        }),
+        "discover" if parts.len() >= 2 => Some(Request {
+            id: new_id(),
+            method: "discover_uri".to_string(),
+            params: serde_json::json!({
+                "uri": parts[1],
+                "timeout": parts.get(2).and_then(|s| s.parse::<u32>().ok())
             }),
         }),
         "help" => {

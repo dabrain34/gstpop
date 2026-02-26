@@ -51,6 +51,20 @@ impl ManagerInterface {
         serde_json::to_string(&elements).map_err(|e| zbus::fdo::Error::Failed(e.to_string()))
     }
 
+    async fn discover_uri(&self, uri: &str, timeout: u32) -> zbus::fdo::Result<String> {
+        let uri = uri.to_string();
+        let timeout_opt = if timeout == 0 { None } else { Some(timeout) };
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::gst::discoverer::discover_uri(&uri, timeout_opt)
+        })
+        .await
+        .map_err(|e| zbus::fdo::Error::Failed(format!("Discovery task failed: {}", e)))?
+        .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
+
+        serde_json::to_string(&result).map_err(|e| zbus::fdo::Error::Failed(e.to_string()))
+    }
+
     async fn update_pipeline(&self, id: &str, description: &str) -> zbus::fdo::Result<()> {
         self.manager
             .update_pipeline(id, description)

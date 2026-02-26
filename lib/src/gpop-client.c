@@ -565,3 +565,16 @@ gpop_client_get_elements (GPOPClient *client, const gchar *detail)
     json_object_unref (params);
   return id;
 }
+
+gchar *
+gpop_client_discover_uri (GPOPClient *client, const gchar *uri, guint timeout)
+{
+  JsonObject *params = json_object_new ();
+  json_object_set_string_member (params, "uri", uri);
+  if (timeout > 0) {
+    json_object_set_int_member (params, "timeout", (gint64) timeout);
+  }
+  gchar *id = gpop_client_send_request (client, "discover_uri", params);
+  json_object_unref (params);
+  return id;
+}

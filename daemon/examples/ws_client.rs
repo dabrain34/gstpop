@@ -110,6 +110,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  version                     - Get daemon version");
     println!("  sysinfo                     - Get daemon and GStreamer info");
     println!("  count                       - Get pipeline count");
+    println!(
+        "  elements [detail]           - List GStreamer elements (detail: none, summary, full)"
+    );
+    println!("  discover <uri> [timeout]    - Discover media info for a URI");
     println!("  quit                        - Exit");
     println!();
 
@@ -240,6 +244,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 id: new_id(),
                 method: "get_pipeline_count".to_string(),
                 params: serde_json::json!({}),
+            },
+            "elements" => Request {
+                id: new_id(),
+                method: "get_elements".to_string(),
+                params: if parts.len() >= 2 {
+                    serde_json::json!({ "detail": parts[1] })
+                } else {
+                    serde_json::json!({})
+                },
+            },
+            "discover" if parts.len() >= 2 => Request {
+                id: new_id(),
+                method: "discover_uri".to_string(),
+                params: serde_json::json!({
+                    "uri": parts[1],
+                    "timeout": parts.get(2).and_then(|s| s.parse::<u32>().ok())
+                }),
             },
             "quit" | "exit" => {
                 break;

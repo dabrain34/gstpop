@@ -10,6 +10,7 @@ repository = "https://github.com/dabrain34/gpop"
 [dependencies]
 # GStreamer bindings
 gstreamer = "0.23"
+gstreamer-pbutils = "0.23"
 
 # Async runtime
 tokio = { version = "1", features = ["full", "signal"] }

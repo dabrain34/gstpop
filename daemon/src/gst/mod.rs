@@ -6,6 +6,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+pub mod discoverer;
 pub mod event;
 pub mod manager;
 pub mod pipeline;
@@ -32,6 +33,9 @@ mod pipeline_tests;
 
 #[cfg(test)]
 mod playback_mode_tests;
+
+#[cfg(test)]
+mod discoverer_tests;
 
 #[cfg(test)]
 mod registry_tests;

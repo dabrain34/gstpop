@@ -25,6 +25,9 @@ pub enum GpopError {
     #[error("Media not supported: {0}")]
     MediaNotSupported(String),
 
+    #[error("Discovery failed: {0}")]
+    DiscoveryFailed(String),
+
     #[cfg(target_os = "linux")]
     #[error("DBus error: {0}")]
     DBus(#[from] zbus::Error),
