@@ -1,5 +1,5 @@
 [package]
-name = "gpop-daemon"
+name = "gpop"
 version = "0.2.0"
 edition = "2021"
 authors = ["Stéphane Cerveau"]
@@ -41,7 +41,7 @@ name = "gpop"
 path = "src/lib.rs"
 
 [[bin]]
-name = "gpop-daemon"
+name = "gpop"
 path = "src/main.rs"
 
 [[example]]

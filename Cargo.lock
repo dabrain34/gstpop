@@ -534,20 +534,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpop-client"
-version = "0.2.0"
-dependencies = [
- "futures-util",
- "rustyline",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "uuid",
-]
-
-[[package]]
-name = "gpop-daemon"
+name = "gpop"
 version = "0.2.0"
 dependencies = [
  "clap",
@@ -564,6 +551,19 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "zbus",
+]
+
+[[package]]
+name = "gpop-client"
+version = "0.2.0"
+dependencies = [
+ "futures-util",
+ "rustyline",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "uuid",
 ]
 
 [[package]]

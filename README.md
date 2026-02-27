@@ -91,16 +91,24 @@ ninja -C builddir
 Start the WebSocket server:
 
 ```
-./builddir/release/gpop-daemon
+./builddir/release/gpop daemon
 ```
 
 By default, the server binds to `ws://127.0.0.1:9000`.
 
-Options:
+#### Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| `daemon` | Start the WebSocket/DBus server |
+| `play` | Play pipelines and exit when all finish |
+| `inspect` | Inspect GStreamer elements |
+| `discover` | Discover media information for a URI |
+
+#### Daemon Options
 - `--bind` / `-b`: IP address to bind to (default: `127.0.0.1`)
 - `--port` / `-P`: Port to listen on (default: `9000`)
 - `--pipeline` / `-p`: Initial pipeline(s) to create
-- `--playback-mode` / `-x`: Auto-play all pipelines and exit when all reach EOS
 - `--api-key`: API key for WebSocket authentication
 - `--allowed-origin`: Allowed origins for WebSocket connections (CSRF protection)
 - `--no-websocket`: Disable WebSocket interface
@@ -109,15 +117,15 @@ Options:
 Example with custom settings:
 
 ```
-./builddir/release/gpop-daemon --bind 0.0.0.0 --port 8080
+./builddir/release/gpop daemon --bind 0.0.0.0 --port 8080
 ```
 
 Example with authentication:
 
 ```
-./builddir/release/gpop-daemon --api-key mysecretkey
+./builddir/release/gpop daemon --api-key mysecretkey
 # or via environment variable
-GPOP_API_KEY=mysecretkey ./builddir/release/gpop-daemon
+GPOP_API_KEY=mysecretkey ./builddir/release/gpop daemon
 ```
 
 #### Running the Rust Client

@@ -11,6 +11,7 @@ pub mod dbus;
 pub mod error;
 pub mod gst;
 pub mod playback;
+pub mod signal;
 pub mod websocket;
 
 pub use error::{GpopError, Result};

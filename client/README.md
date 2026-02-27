@@ -1,6 +1,6 @@
 # gpop Clients
 
-Interactive WebSocket clients for controlling the gpop-daemon. Both clients implement the same JSON-RPC 2.0 protocol and provide identical functionality.
+Interactive WebSocket clients for controlling gpop. Both clients implement the same JSON-RPC 2.0 protocol and provide identical functionality.
 
 ## Available Clients
 
@@ -13,7 +13,7 @@ Interactive WebSocket clients for controlling the gpop-daemon. Both clients impl
 
 - **Command history**: Use up/down arrow keys to navigate through previously entered commands (session-only, not persisted to disk)
 - **Line editing**: Full readline-style editing with cursor movement, delete, backspace, etc.
-- **JSON-RPC 2.0**: Standard protocol for communication with gpop-daemon
+- **JSON-RPC 2.0**: Standard protocol for communication with gpop
 - **Event handling**: Asynchronous display of pipeline events while maintaining input prompt
 
 ## Building
@@ -71,7 +71,7 @@ For the `snapshot` command: `media`, `caps`, `states`, `all` (optional, defaults
 
 ## Protocol
 
-Both clients communicate with gpop-daemon using JSON-RPC 2.0 over WebSocket.
+Both clients communicate with gpop using JSON-RPC 2.0 over WebSocket.
 
 ### Request Format
 

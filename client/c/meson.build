@@ -1,4 +1,4 @@
-# C WebSocket client for gpop-daemon
+# C WebSocket client for gpop
 
 # readline doesn't have pkg-config, use compiler.find_library
 cc = meson.get_compiler('c')

@@ -36,9 +36,9 @@ endif
 # Rust targets (daemon + client)
 cargo = find_program('cargo', required: true)
 
-custom_target('gpop-daemon',
-  output: 'gpop-daemon',
-  command: [cargo, 'build', '--release', '-p', 'gpop-daemon', '--target-dir', '@OUTDIR@'],
+custom_target('gpop',
+  output: 'gpop',
+  command: [cargo, 'build', '--release', '-p', 'gpop', '--target-dir', '@OUTDIR@'],
   console: true,
   build_by_default: true,
 )

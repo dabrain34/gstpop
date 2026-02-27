@@ -6,7 +6,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::gst::registry::{get_elements, DetailLevel};
+use crate::gst::registry::{get_element, get_elements, DetailLevel};
 
 #[test]
 fn test_get_elements_none() {
@@ -87,4 +87,21 @@ fn test_detail_level_parse() {
         DetailLevel::Summary
     );
     assert_eq!("full".parse::<DetailLevel>().unwrap(), DetailLevel::Full);
+}
+
+#[test]
+fn test_get_element_found() {
+    let _ = gstreamer::init();
+    let info = get_element("fakesink", DetailLevel::Summary);
+    assert!(info.is_some());
+    let info = info.unwrap();
+    assert_eq!(info.name, "fakesink");
+    assert!(info.long_name.is_some());
+}
+
+#[test]
+fn test_get_element_not_found() {
+    let _ = gstreamer::init();
+    let info = get_element("nonexistent_element_xyz", DetailLevel::None);
+    assert!(info.is_none());
 }
