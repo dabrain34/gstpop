@@ -85,6 +85,17 @@ pub fn get_elements(detail: DetailLevel) -> Vec<ElementInfo> {
     elements
 }
 
+/// Query the GStreamer registry for a single element factory by name.
+///
+/// Returns `None` if the element is not found.
+pub fn get_element(name: &str, detail: DetailLevel) -> Option<ElementInfo> {
+    let registry = gst::Registry::get();
+    registry
+        .find_feature(name, gst::ElementFactory::static_type())
+        .and_then(|feature| feature.downcast::<gst::ElementFactory>().ok())
+        .map(|factory| build_element_info(&factory, detail))
+}
+
 fn build_element_info(factory: &gst::ElementFactory, detail: DetailLevel) -> ElementInfo {
     let name = factory.name().to_string();
     let plugin_name = factory
