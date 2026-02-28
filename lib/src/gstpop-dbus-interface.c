@@ -21,13 +21,13 @@
  *
  */
 
-#include "gpop-dbus-interface.h"
+#include "gstpop-dbus-interface.h"
 
-G_DEFINE_TYPE (GPOPDBusInterface, gpop_dbus_interface, G_TYPE_OBJECT);
-#define parent_class gpop_dbus_interface_parent_class
+G_DEFINE_TYPE (GSTPOPDBusInterface, gstpop_dbus_interface, G_TYPE_OBJECT);
+#define parent_class gstpop_dbus_interface_parent_class
 
 void
-gpop_dbus_interface_handle_method_call (GDBusConnection * connection,
+gstpop_dbus_interface_handle_method_call (GDBusConnection * connection,
     const gchar * sender,
     const gchar * object_path,
     const gchar * interface_name,
@@ -35,9 +35,9 @@ gpop_dbus_interface_handle_method_call (GDBusConnection * connection,
     GVariant * parameters,
     GDBusMethodInvocation * invocation, gpointer user_data)
 {
-  GPOPDBusInterface *iface = (GPOPDBusInterface *) user_data;
-  GPOPDBusInterfaceClass *klass;
-  klass = GPOP_DBUS_INTERFACE_GET_CLASS (iface);
+  GSTPOPDBusInterface *iface = (GSTPOPDBusInterface *) user_data;
+  GSTPOPDBusInterfaceClass *klass;
+  klass = GSTPOP_DBUS_INTERFACE_GET_CLASS (iface);
 
   if (klass->method_call)
     klass->method_call (connection, sender, object_path, interface_name,
@@ -49,16 +49,16 @@ gpop_dbus_interface_handle_method_call (GDBusConnection * connection,
 }
 
 GVariant *
-gpop_dbus_interface_handle_get_property (GDBusConnection * connection,
+gstpop_dbus_interface_handle_get_property (GDBusConnection * connection,
     const gchar * sender,
     const gchar * object_path,
     const gchar * interface_name,
     const gchar * property_name, GError ** error, gpointer user_data)
 {
   GVariant *ret = NULL;
-  GPOPDBusInterface *iface = (GPOPDBusInterface *) user_data;
-  GPOPDBusInterfaceClass *klass;
-  klass = GPOP_DBUS_INTERFACE_GET_CLASS (iface);
+  GSTPOPDBusInterface *iface = (GSTPOPDBusInterface *) user_data;
+  GSTPOPDBusInterfaceClass *klass;
+  klass = GSTPOP_DBUS_INTERFACE_GET_CLASS (iface);
 
   if (klass->get_property)
     ret =
@@ -69,16 +69,16 @@ gpop_dbus_interface_handle_get_property (GDBusConnection * connection,
 }
 
 static gboolean
-gpop_dbus_interface_handle_set_property (GDBusConnection * connection,
+gstpop_dbus_interface_handle_set_property (GDBusConnection * connection,
     const gchar * sender,
     const gchar * object_path,
     const gchar * interface_name,
     const gchar * property_name,
     GVariant * value, GError ** error, gpointer user_data)
 {
-  GPOPDBusInterface *iface = (GPOPDBusInterface *) user_data;
-  GPOPDBusInterfaceClass *klass;
-  klass = GPOP_DBUS_INTERFACE_GET_CLASS (iface);
+  GSTPOPDBusInterface *iface = (GSTPOPDBusInterface *) user_data;
+  GSTPOPDBusInterfaceClass *klass;
+  klass = GSTPOP_DBUS_INTERFACE_GET_CLASS (iface);
   if (klass->set_property)
     return klass->set_property (connection, sender, object_path, interface_name,
         property_name, value, error, user_data);
@@ -88,18 +88,18 @@ gpop_dbus_interface_handle_set_property (GDBusConnection * connection,
 
 /* for now */
 static const GDBusInterfaceVTable interface_vtable = {
-  gpop_dbus_interface_handle_method_call,
-  gpop_dbus_interface_handle_get_property,
-  gpop_dbus_interface_handle_set_property
+  gstpop_dbus_interface_handle_method_call,
+  gstpop_dbus_interface_handle_get_property,
+  gstpop_dbus_interface_handle_set_property
 };
 
 /*----------------------------------------------------------------------------*
  *                            GObject interface                               *
  *----------------------------------------------------------------------------*/
 static void
-gpop_dbus_interface_dispose (GObject * object)
+gstpop_dbus_interface_dispose (GObject * object)
 {
-  GPOPDBusInterface *iface = GPOP_DBUS_INTERFACE (object);
+  GSTPOPDBusInterface *iface = GSTPOP_DBUS_INTERFACE (object);
   if (iface->object_id) {
     g_dbus_connection_unregister_object (iface->connection, iface->object_id);
     iface->object_id = 0;
@@ -113,21 +113,21 @@ gpop_dbus_interface_dispose (GObject * object)
 }
 
 static void
-gpop_dbus_interface_class_init (GPOPDBusInterfaceClass * klass)
+gstpop_dbus_interface_class_init (GSTPOPDBusInterfaceClass * klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
-  object_class->dispose = gpop_dbus_interface_dispose;
+  object_class->dispose = gstpop_dbus_interface_dispose;
   parent_class = g_type_class_peek_parent (klass);
 }
 
 static void
-gpop_dbus_interface_init (GPOPDBusInterface * iface)
+gstpop_dbus_interface_init (GSTPOPDBusInterface * iface)
 {
 
 }
 
 gboolean
-gpop_dbus_interface_register (GPOPDBusInterface * iface,
+gstpop_dbus_interface_register (GSTPOPDBusInterface * iface,
     const gchar * object_path, const gchar * xml_introspection,
     GDBusConnection * connection)
 {

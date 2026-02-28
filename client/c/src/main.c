@@ -18,14 +18,14 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <gpop-client.h>
+#include <gstpop-client.h>
 #include <stdio.h>
 #include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 
 typedef struct {
-    GPOPClient *client;
+    GSTPOPClient *client;
     GMainLoop *loop;
 } AppContext;
 
@@ -70,7 +70,7 @@ strip_quotes (const gchar *str)
 }
 
 static void
-on_response (GPOPClient *client,
+on_response (GSTPOPClient *client,
              const gchar *id,
              JsonNode *result,
              gpointer user_data)
@@ -78,14 +78,14 @@ on_response (GPOPClient *client,
     (void) client;
     (void) user_data;
 
-    gchar *result_str = gpop_json_to_pretty_string (result);
+    gchar *result_str = gstpop_json_to_pretty_string (result);
     g_print ("\n[RESPONSE] id=%s: %s\n", id, result_str);
     rl_forced_update_display ();
     g_free (result_str);
 }
 
 static void
-on_error (GPOPClient *client,
+on_error (GSTPOPClient *client,
           const gchar *id,
           gint code,
           const gchar *message,
@@ -99,7 +99,7 @@ on_error (GPOPClient *client,
 }
 
 static void
-on_event (GPOPClient *client,
+on_event (GSTPOPClient *client,
           const gchar *event_type,
           JsonNode *data,
           gpointer user_data)
@@ -107,14 +107,14 @@ on_event (GPOPClient *client,
     (void) client;
     (void) user_data;
 
-    gchar *data_str = gpop_json_to_pretty_string (data);
+    gchar *data_str = gstpop_json_to_pretty_string (data);
     g_print ("\n[EVENT] %s: %s\n", event_type, data_str);
     rl_forced_update_display ();
     g_free (data_str);
 }
 
 static void
-on_closed (GPOPClient *client, gpointer user_data)
+on_closed (GSTPOPClient *client, gpointer user_data)
 {
     AppContext *ctx = (AppContext *) user_data;
     (void) client;
@@ -138,70 +138,70 @@ process_command (AppContext *ctx, const gchar *line)
     const gchar *cmd = parts[0];
 
     if (g_strcmp0 (cmd, "list") == 0) {
-        request_id = gpop_client_list_pipelines (ctx->client);
+        request_id = gstpop_client_list_pipelines (ctx->client);
     }
     else if (g_strcmp0 (cmd, "create") == 0 && argc > 1) {
         gchar *joined = g_strjoinv (" ", parts + 1);
         gchar *description = strip_quotes (joined);
-        request_id = gpop_client_create_pipeline (ctx->client, description);
+        request_id = gstpop_client_create_pipeline (ctx->client, description);
         g_free (description);
         g_free (joined);
     }
     else if (g_strcmp0 (cmd, "update") == 0 && argc > 2) {
         gchar *joined = g_strjoinv (" ", parts + 2);
         gchar *description = strip_quotes (joined);
-        request_id = gpop_client_update_pipeline (ctx->client, parts[1], description);
+        request_id = gstpop_client_update_pipeline (ctx->client, parts[1], description);
         g_free (description);
         g_free (joined);
     }
     else if (g_strcmp0 (cmd, "remove") == 0 && argc == 2) {
-        request_id = gpop_client_remove_pipeline (ctx->client, parts[1]);
+        request_id = gstpop_client_remove_pipeline (ctx->client, parts[1]);
     }
     else if (g_strcmp0 (cmd, "info") == 0 && argc == 2) {
-        request_id = gpop_client_get_pipeline_info (ctx->client, parts[1]);
+        request_id = gstpop_client_get_pipeline_info (ctx->client, parts[1]);
     }
     else if (g_strcmp0 (cmd, "play") == 0) {
         const gchar *pipeline_id = (argc >= 2) ? parts[1] : NULL;
-        request_id = gpop_client_play (ctx->client, pipeline_id);
+        request_id = gstpop_client_play (ctx->client, pipeline_id);
     }
     else if (g_strcmp0 (cmd, "pause") == 0) {
         const gchar *pipeline_id = (argc >= 2) ? parts[1] : NULL;
-        request_id = gpop_client_pause (ctx->client, pipeline_id);
+        request_id = gstpop_client_pause (ctx->client, pipeline_id);
     }
     else if (g_strcmp0 (cmd, "stop") == 0) {
         const gchar *pipeline_id = (argc >= 2) ? parts[1] : NULL;
-        request_id = gpop_client_stop (ctx->client, pipeline_id);
+        request_id = gstpop_client_stop (ctx->client, pipeline_id);
     }
     else if (g_strcmp0 (cmd, "state") == 0 && argc == 3) {
-        request_id = gpop_client_set_state (ctx->client, parts[1], parts[2]);
+        request_id = gstpop_client_set_state (ctx->client, parts[1], parts[2]);
     }
     else if (g_strcmp0 (cmd, "snapshot") == 0 && argc >= 2) {
         const gchar *details = (argc > 2) ? parts[2] : NULL;
-        request_id = gpop_client_snapshot (ctx->client, parts[1], details);
+        request_id = gstpop_client_snapshot (ctx->client, parts[1], details);
     }
     else if (g_strcmp0 (cmd, "position") == 0) {
         const gchar *pipeline_id = (argc > 1) ? parts[1] : NULL;
-        request_id = gpop_client_get_position (ctx->client, pipeline_id);
+        request_id = gstpop_client_get_position (ctx->client, pipeline_id);
     }
     else if (g_strcmp0 (cmd, "version") == 0) {
-        request_id = gpop_client_get_version (ctx->client);
+        request_id = gstpop_client_get_version (ctx->client);
     }
     else if (g_strcmp0 (cmd, "sysinfo") == 0) {
-        request_id = gpop_client_get_info (ctx->client);
+        request_id = gstpop_client_get_info (ctx->client);
     }
     else if (g_strcmp0 (cmd, "count") == 0) {
-        request_id = gpop_client_get_pipeline_count (ctx->client);
+        request_id = gstpop_client_get_pipeline_count (ctx->client);
     }
     else if (g_strcmp0 (cmd, "elements") == 0) {
         const gchar *detail = (argc > 1) ? parts[1] : NULL;
-        request_id = gpop_client_get_elements (ctx->client, detail);
+        request_id = gstpop_client_get_elements (ctx->client, detail);
     }
     else if (g_strcmp0 (cmd, "discover") == 0 && argc >= 2) {
         guint timeout = 0;
         if (argc > 2) {
             timeout = (guint) g_ascii_strtoull (parts[2], NULL, 10);
         }
-        request_id = gpop_client_discover_uri (ctx->client, parts[1], timeout);
+        request_id = gstpop_client_discover_uri (ctx->client, parts[1], timeout);
     }
     else if (g_strcmp0 (cmd, "help") == 0) {
         print_help ();
@@ -267,7 +267,7 @@ on_stdin_ready (GIOChannel *source,
 }
 
 static void
-on_connected (GPOPClient *client,
+on_connected (GSTPOPClient *client,
               gboolean success,
               const gchar *error_message,
               gpointer user_data)
@@ -296,7 +296,7 @@ on_connected (GPOPClient *client,
 gint
 main (gint argc, gchar *argv[])
 {
-    const gchar *url = GPOP_CLIENT_DEFAULT_URL;
+    const gchar *url = GSTPOP_CLIENT_DEFAULT_URL;
 
     if (argc > 1) {
         url = argv[1];
@@ -304,17 +304,17 @@ main (gint argc, gchar *argv[])
 
     app = g_new0 (AppContext, 1);
     app->loop = g_main_loop_new (NULL, FALSE);
-    app->client = gpop_client_new (url);
+    app->client = gstpop_client_new (url);
 
     /* Set up callbacks */
-    gpop_client_set_response_callback (app->client, on_response, app);
-    gpop_client_set_error_callback (app->client, on_error, app);
-    gpop_client_set_event_callback (app->client, on_event, app);
-    gpop_client_set_connected_callback (app->client, on_connected, app);
-    gpop_client_set_closed_callback (app->client, on_closed, app);
+    gstpop_client_set_response_callback (app->client, on_response, app);
+    gstpop_client_set_error_callback (app->client, on_error, app);
+    gstpop_client_set_event_callback (app->client, on_event, app);
+    gstpop_client_set_connected_callback (app->client, on_connected, app);
+    gstpop_client_set_closed_callback (app->client, on_closed, app);
 
     g_print ("Connecting to %s...\n", url);
-    gpop_client_connect (app->client);
+    gstpop_client_connect (app->client);
 
     g_main_loop_run (app->loop);
 
@@ -322,7 +322,7 @@ main (gint argc, gchar *argv[])
     rl_callback_handler_remove ();
     clear_history ();
 
-    gpop_client_free (app->client);
+    gstpop_client_free (app->client);
     g_main_loop_unref (app->loop);
     g_free (app);
 

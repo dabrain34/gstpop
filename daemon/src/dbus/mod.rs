@@ -23,7 +23,7 @@ use crate::gst::{EventReceiver, PipelineEvent, PipelineManager};
 use self::manager::ManagerInterface;
 use self::pipeline::PipelineInterface;
 
-pub const DBUS_SERVICE_NAME: &str = "org.gpop";
+pub const DBUS_SERVICE_NAME: &str = "org.gstpop";
 
 pub struct DbusServer {
     connection: Connection,
@@ -75,7 +75,7 @@ impl DbusServer {
         }
 
         info!(
-            "Registered pipeline '{}' at DBus path /org/gpop/Pipeline{}",
+            "Registered pipeline '{}' at DBus path /org/gstpop/Pipeline{}",
             pipeline_id, index
         );
 

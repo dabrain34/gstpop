@@ -1,8 +1,8 @@
 ### Description
 
-**gpop** (GstPrinceOfParser) is a GStreamer pipeline management daemon that allows you to create, control, and monitor GStreamer media pipelines remotely via WebSocket or DBus interfaces.
+**gstpop** (GstPrinceOfParser) is a GStreamer pipeline management daemon that allows you to create, control, and monitor GStreamer media pipelines remotely via WebSocket or DBus interfaces.
 
-### Why Use gpop?
+### Why Use gstpop?
 
 #### Process Isolation
 Run GStreamer pipelines in a separate process from your main application. If a pipeline crashes due to a buggy codec or driver issue, your application continues running unaffected.
@@ -20,7 +20,7 @@ Create and manage multiple independent pipelines simultaneously:
 - Monitor and control each pipeline individually
 
 #### Language Agnostic
-Any language that can speak WebSocket and JSON can control gpop:
+Any language that can speak WebSocket and JSON can control gstpop:
 - Use the provided Rust or C clients
 - Integrate with Python, JavaScript, Go, or any other language
 - Build custom dashboards or automation scripts
@@ -36,7 +36,7 @@ GstPrinceOfParser/
 ├── client/
 │   ├── rust/         # Rust WebSocket client
 │   └── c/            # C client
-├── lib/              # C library (libgpop)
+├── lib/              # C library (libgstpop)
 ├── Cargo.toml        # Rust workspace
 └── meson.build       # Build system (C + Rust)
 ```
@@ -91,7 +91,7 @@ ninja -C builddir
 Start the WebSocket server:
 
 ```
-./builddir/release/gpop daemon
+./builddir/release/gstpop daemon
 ```
 
 By default, the server binds to `ws://127.0.0.1:9000`.
@@ -117,27 +117,27 @@ By default, the server binds to `ws://127.0.0.1:9000`.
 Example with custom settings:
 
 ```
-./builddir/release/gpop daemon --bind 0.0.0.0 --port 8080
+./builddir/release/gstpop daemon --bind 0.0.0.0 --port 8080
 ```
 
 Example with authentication:
 
 ```
-./builddir/release/gpop daemon --api-key mysecretkey
+./builddir/release/gstpop daemon --api-key mysecretkey
 # or via environment variable
-GPOP_API_KEY=mysecretkey ./builddir/release/gpop daemon
+GSTPOP_API_KEY=mysecretkey ./builddir/release/gstpop daemon
 ```
 
 #### Running the Rust Client
 
 ```
-./builddir/release/gpop-client
+./builddir/release/gstpop-client
 ```
 
 Or connect to a specific server:
 
 ```
-./builddir/release/gpop-client ws://192.168.1.100:9000
+./builddir/release/gstpop-client ws://192.168.1.100:9000
 ```
 
 See [daemon/README.md](daemon/README.md) for full API documentation.
@@ -159,7 +159,7 @@ For security-sensitive deployments:
 
 #### Authentication
 
-- **API Key**: Use `--api-key` or `GPOP_API_KEY` environment variable
+- **API Key**: Use `--api-key` or `GSTPOP_API_KEY` environment variable
 - **Origin Validation**: Use `--allowed-origin` to restrict browser origins
 
 Note: Non-browser clients (CLI, scripts) don't send `Origin` headers and bypass origin validation when connecting directly.

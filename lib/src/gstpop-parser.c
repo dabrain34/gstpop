@@ -21,9 +21,9 @@
  *
  */
 
-#include "gpop-private.h"
+#include "gstpop-private.h"
 
-struct _GPOPParser
+struct _GSTPOPParser
 {
   GObject base;
   GstElement *pipeline;
@@ -34,32 +34,32 @@ struct _GPOPParser
 
 };
 
-G_DEFINE_TYPE (GPOPParser, gpop_parser, G_TYPE_OBJECT);
+G_DEFINE_TYPE (GSTPOPParser, gstpop_parser, G_TYPE_OBJECT);
 
-GST_DEBUG_CATEGORY (gpop_debug);
-#define GST_CAT_DEFAULT gpop_debug
+GST_DEBUG_CATEGORY (gstpop_debug);
+#define GST_CAT_DEFAULT gstpop_debug
 
 enum
 {
-  SIGNAL_GPOP_PARSER_STATE,
+  SIGNAL_GSTPOP_PARSER_STATE,
   SIGNAL_LAST
 };
 
-static guint gpop_parser_signals[SIGNAL_LAST] = { 0 };
+static guint gstpop_parser_signals[SIGNAL_LAST] = { 0 };
 
-static void gpop_parser_destroy (GPOPParser * parser);
+static void gstpop_parser_destroy (GSTPOPParser * parser);
 
 static void
-handle_message_application (GPOPParser * parser, const GstStructure * structure)
+handle_message_application (GSTPOPParser * parser, const GstStructure * structure)
 {
   if (!g_strcmp0 (gst_structure_get_name (structure), "quit-parser"))
-    gpop_parser_destroy (parser);
+    gstpop_parser_destroy (parser);
 }
 
 static gboolean
 message_cb (GstBus * bus, GstMessage * message, gpointer user_data)
 {
-  GPOPParser *parser = (GPOPParser *) user_data;
+  GSTPOPParser *parser = (GSTPOPParser *) user_data;
   GST_DEBUG_OBJECT (parser, "Received new message %s from %s",
       GST_MESSAGE_TYPE_NAME (message), GST_OBJECT_NAME (message->src));
   switch (GST_MESSAGE_TYPE (message)) {
@@ -76,7 +76,7 @@ message_cb (GstBus * bus, GstMessage * message, gpointer user_data)
         GST_ERROR_OBJECT (parser, "Additional debug info:%s", debug);
 
       g_signal_emit (parser,
-          gpop_parser_signals[SIGNAL_GPOP_PARSER_STATE], 0, GPOP_PARSER_ERROR);
+          gstpop_parser_signals[SIGNAL_GSTPOP_PARSER_STATE], 0, GSTPOP_PARSER_ERROR);
 
       g_error_free (err);
       g_free (debug);
@@ -104,7 +104,7 @@ message_cb (GstBus * bus, GstMessage * message, gpointer user_data)
     case GST_MESSAGE_EOS:
       parser->eos = TRUE;
       g_signal_emit (parser,
-          gpop_parser_signals[SIGNAL_GPOP_PARSER_STATE], 0, GPOP_PARSER_EOS);
+          gstpop_parser_signals[SIGNAL_GSTPOP_PARSER_STATE], 0, GSTPOP_PARSER_EOS);
       break;
 
     case GST_MESSAGE_STATE_CHANGED:
@@ -115,8 +115,8 @@ message_cb (GstBus * bus, GstMessage * message, gpointer user_data)
         parser->state = new;
         if (parser->state == GST_STATE_PLAYING)
           g_signal_emit (parser,
-              gpop_parser_signals[SIGNAL_GPOP_PARSER_STATE], 0,
-              GPOP_PARSER_PLAYING);
+              gstpop_parser_signals[SIGNAL_GSTPOP_PARSER_STATE], 0,
+              GSTPOP_PARSER_PLAYING);
       }
       break;
     }
@@ -159,12 +159,12 @@ message_cb (GstBus * bus, GstMessage * message, gpointer user_data)
 }
 
 static gboolean
-gpop_parser_set_player_state (GPOPParser * parser, GstState state)
+gstpop_parser_set_player_state (GSTPOPParser * parser, GstState state)
 {
   gboolean res = TRUE;
   GstStateChangeReturn ret;
 
-  g_return_val_if_fail (GPOP_IS_PARSER (parser), FALSE);
+  g_return_val_if_fail (GSTPOP_IS_PARSER (parser), FALSE);
 
   ret = gst_element_set_state (parser->pipeline, state);
 
@@ -193,7 +193,7 @@ gpop_parser_set_player_state (GPOPParser * parser, GstState state)
 }
 
 static void
-gpop_parser_destroy (GPOPParser * parser)
+gstpop_parser_destroy (GSTPOPParser * parser)
 {
   GST_INFO_OBJECT (parser, "About to destroy the parser");
   if (parser->bus) {
@@ -201,7 +201,7 @@ gpop_parser_destroy (GPOPParser * parser)
     g_clear_object (&parser->bus);
   }
   if (parser->pipeline) {
-    gpop_parser_set_player_state (parser, GST_STATE_NULL);
+    gstpop_parser_set_player_state (parser, GST_STATE_NULL);
     g_object_unref (parser->pipeline);
     parser->pipeline = NULL;
     GST_INFO_OBJECT (parser, "pipeline destroyed");
@@ -209,64 +209,64 @@ gpop_parser_destroy (GPOPParser * parser)
 }
 
 static void
-gpop_parser_dispose (GObject * object)
+gstpop_parser_dispose (GObject * object)
 {
-  GPOPParser *parser = GPOP_PARSER (object);
-  gpop_parser_destroy (parser);
+  GSTPOPParser *parser = GSTPOP_PARSER (object);
+  gstpop_parser_destroy (parser);
   g_clear_object (&parser->bus);
 
-  G_OBJECT_CLASS (gpop_parser_parent_class)->dispose (object);
+  G_OBJECT_CLASS (gstpop_parser_parent_class)->dispose (object);
 }
 
 static void
-gpop_parser_class_init (GPOPParserClass * klass)
+gstpop_parser_class_init (GSTPOPParserClass * klass)
 {
   GObjectClass *gobject_class;
 
   gobject_class = G_OBJECT_CLASS (klass);
-  gobject_class->dispose = gpop_parser_dispose;
+  gobject_class->dispose = gstpop_parser_dispose;
 
-  gpop_parser_signals[SIGNAL_GPOP_PARSER_STATE] =
+  gstpop_parser_signals[SIGNAL_GSTPOP_PARSER_STATE] =
       g_signal_new ("state-changed", G_TYPE_FROM_CLASS (klass),
-      G_SIGNAL_RUN_LAST, G_STRUCT_OFFSET (GPOPParserClass,
+      G_SIGNAL_RUN_LAST, G_STRUCT_OFFSET (GSTPOPParserClass,
           state_changed), NULL, NULL, g_cclosure_marshal_VOID__INT,
       G_TYPE_NONE, 1, G_TYPE_INT);
 
-  GST_DEBUG_CATEGORY_INIT (gpop_debug, "gpop", 0, "gpop-parser");
+  GST_DEBUG_CATEGORY_INIT (gstpop_debug, "gstpop", 0, "gstpop-parser");
 }
 
 static void
-gpop_parser_init (GPOPParser * parser)
+gstpop_parser_init (GSTPOPParser * parser)
 {
 }
 
-GPOPParser *
-gpop_parser_new ()
+GSTPOPParser *
+gstpop_parser_new ()
 {
-  return g_object_new (GPOP_TYPE_PARSER, NULL);
+  return g_object_new (GSTPOP_TYPE_PARSER, NULL);
 }
 
 void
-gpop_parser_free (GPOPParser * parser)
+gstpop_parser_free (GSTPOPParser * parser)
 {
   if (parser)
-    gpop_parser_quit (parser);
+    gstpop_parser_quit (parser);
   g_clear_object (&parser);
 }
 
 /* API */
 gboolean
-gpop_parser_create (GPOPParser * parser, const gchar * parser_desc)
+gstpop_parser_create (GSTPOPParser * parser, const gchar * parser_desc)
 {
   GstElement *parsed_element;
   GstBus *bus;
   GError *err = NULL;
   gchar *desc;
 
-  gpop_parser_destroy (parser);
+  gstpop_parser_destroy (parser);
 
-  if (g_getenv ("GPOP_PIPELINE"))
-    desc = g_strdup (g_getenv ("GPOP_PIPELINE"));
+  if (g_getenv ("GSTPOP_PIPELINE"))
+    desc = g_strdup (g_getenv ("GSTPOP_PIPELINE"));
   else
     desc = g_strdup (parser_desc);
   GST_INFO_OBJECT (parser, "About to instantiate the parser pipeline '%s'",
@@ -299,39 +299,39 @@ gpop_parser_create (GPOPParser * parser, const gchar * parser_desc)
 /* Public APÏ */
 
 gboolean
-gpop_parser_play (GPOPParser * parser, const gchar * parser_desc)
+gstpop_parser_play (GSTPOPParser * parser, const gchar * parser_desc)
 {
-  if (!gpop_parser_create (parser, parser_desc))
+  if (!gstpop_parser_create (parser, parser_desc))
     return FALSE;
 
-  return gpop_parser_set_player_state (parser, GST_STATE_PLAYING);
+  return gstpop_parser_set_player_state (parser, GST_STATE_PLAYING);
 }
 
 void
-gpop_parser_quit (GPOPParser * parser)
+gstpop_parser_quit (GSTPOPParser * parser)
 {
-  gpop_parser_set_player_state (parser, GST_STATE_NULL);
+  gstpop_parser_set_player_state (parser, GST_STATE_NULL);
 }
 
 gboolean
-gpop_parser_is_playing (GPOPParser * parser)
+gstpop_parser_is_playing (GSTPOPParser * parser)
 {
   return (parser->state == GST_STATE_PLAYING);
 }
 
 gboolean
-gpop_parser_change_state (GPOPParser * parser, GPOPParserState state)
+gstpop_parser_change_state (GSTPOPParser * parser, GSTPOPParserState state)
 {
   gboolean ret = FALSE;
   switch (state) {
-    case GPOP_PARSER_READY:
-      ret = gpop_parser_set_player_state (parser, GST_STATE_READY);
+    case GSTPOP_PARSER_READY:
+      ret = gstpop_parser_set_player_state (parser, GST_STATE_READY);
       break;
-    case GPOP_PARSER_PAUSED:
-      ret = gpop_parser_set_player_state (parser, GST_STATE_PAUSED);
+    case GSTPOP_PARSER_PAUSED:
+      ret = gstpop_parser_set_player_state (parser, GST_STATE_PAUSED);
       break;
-    case GPOP_PARSER_PLAYING:
-      ret = gpop_parser_set_player_state (parser, GST_STATE_PLAYING);
+    case GSTPOP_PARSER_PLAYING:
+      ret = gstpop_parser_set_player_state (parser, GST_STATE_PLAYING);
       break;
     default:
       GST_INFO_OBJECT (parser, "State not supported %d", state);

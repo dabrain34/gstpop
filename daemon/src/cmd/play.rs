@@ -11,8 +11,8 @@ use std::sync::Arc;
 use clap::Args;
 use tracing::{error, info, warn};
 
-use gpop::gst::{create_event_channel, PipelineManager};
-use gpop::playback::PlaybackTracker;
+use gstpop::gst::{create_event_channel, PipelineManager};
+use gstpop::playback::PlaybackTracker;
 
 /// Play pipelines and exit when all finish
 #[derive(Args, Debug)]
@@ -63,7 +63,7 @@ pub async fn run(args: PlayArgs) -> i32 {
     });
 
     let exit_code = tokio::select! {
-        result = gpop::signal::wait_for_shutdown() => {
+        result = gstpop::signal::wait_for_shutdown() => {
             if let Err(e) = result {
                 error!("{}", e);
             }

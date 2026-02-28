@@ -141,7 +141,7 @@ impl ManagerInterface {
                 let result = DiscoverUriResult { info };
                 to_json_value(request.id, &result)
             }
-            Ok(Err(e)) => Response::from_gpop_error(request.id, &e),
+            Ok(Err(e)) => Response::from_gstpop_error(request.id, &e),
             Err(e) => Response::error(
                 request.id,
                 error_codes::INTERNAL_ERROR,
@@ -181,7 +181,7 @@ impl ManagerInterface {
                 let result = PipelineCreatedResult { pipeline_id };
                 to_json_value(request.id, &result)
             }
-            Err(e) => Response::from_gpop_error(request.id, &e),
+            Err(e) => Response::from_gstpop_error(request.id, &e),
         }
     }
 
@@ -195,7 +195,7 @@ impl ManagerInterface {
 
         match self.manager.remove_pipeline(&params.pipeline_id).await {
             Ok(()) => Response::success(request.id, serde_json::json!({})),
-            Err(e) => Response::from_gpop_error(request.id, &e),
+            Err(e) => Response::from_gstpop_error(request.id, &e),
         }
     }
 
@@ -212,7 +212,7 @@ impl ManagerInterface {
                 let result = PipelineInfoResult::from(info);
                 to_json_value(request.id, &result)
             }
-            Err(e) => Response::from_gpop_error(request.id, &e),
+            Err(e) => Response::from_gstpop_error(request.id, &e),
         }
     }
 
@@ -234,7 +234,7 @@ impl ManagerInterface {
                 let result = SuccessResult { success: true };
                 to_json_value(request.id, &result)
             }
-            Err(e) => Response::from_gpop_error(request.id, &e),
+            Err(e) => Response::from_gstpop_error(request.id, &e),
         }
     }
 
@@ -251,7 +251,7 @@ impl ManagerInterface {
                 let result = SuccessResult { success: true };
                 to_json_value(request.id, &result)
             }
-            Err(e) => Response::from_gpop_error(request.id, &e),
+            Err(e) => Response::from_gstpop_error(request.id, &e),
         }
     }
 
@@ -268,7 +268,7 @@ impl ManagerInterface {
                 let result = SuccessResult { success: true };
                 to_json_value(request.id, &result)
             }
-            Err(e) => Response::from_gpop_error(request.id, &e),
+            Err(e) => Response::from_gstpop_error(request.id, &e),
         }
     }
 
@@ -285,14 +285,14 @@ impl ManagerInterface {
                 let result = SuccessResult { success: true };
                 to_json_value(request.id, &result)
             }
-            Err(e) => Response::from_gpop_error(request.id, &e),
+            Err(e) => Response::from_gstpop_error(request.id, &e),
         }
     }
 
     pub async fn snapshot(
         &self,
         params: SnapshotParams,
-    ) -> Result<SnapshotResult, crate::error::GpopError> {
+    ) -> Result<SnapshotResult, crate::error::GstpopError> {
         let pipeline_id = params
             .pipeline_id
             .unwrap_or_else(|| DEFAULT_PIPELINE_ID.to_string());
@@ -337,7 +337,7 @@ impl ManagerInterface {
                 };
                 to_json_value(request.id, &result)
             }
-            Err(e) => Response::from_gpop_error(request.id, &e),
+            Err(e) => Response::from_gstpop_error(request.id, &e),
         }
     }
 
@@ -358,7 +358,7 @@ impl ManagerInterface {
                 let result = SuccessResult { success: true };
                 to_json_value(request.id, &result)
             }
-            Err(e) => Response::from_gpop_error(request.id, &e),
+            Err(e) => Response::from_gstpop_error(request.id, &e),
         }
     }
 }

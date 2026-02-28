@@ -13,19 +13,19 @@ use clap::Args;
 use tracing::{error, info, warn};
 
 #[cfg(target_os = "linux")]
-use gpop::dbus::{run_dbus_event_forwarder, DbusServer};
-use gpop::gst::{create_event_channel, PipelineManager};
-use gpop::websocket::WebSocketServer;
+use gstpop::dbus::{run_dbus_event_forwarder, DbusServer};
+use gstpop::gst::{create_event_channel, PipelineManager};
+use gstpop::websocket::WebSocketServer;
 
 /// Start the daemon with WebSocket and DBus interfaces
 #[derive(Args, Debug)]
 pub struct DaemonArgs {
     /// WebSocket port
-    #[arg(short = 'P', long, default_value_t = gpop::websocket::DEFAULT_WEBSOCKET_PORT)]
+    #[arg(short = 'P', long, default_value_t = gstpop::websocket::DEFAULT_WEBSOCKET_PORT)]
     pub port: u16,
 
     /// Bind address for WebSocket server
-    #[arg(short, long, default_value = gpop::websocket::DEFAULT_BIND_ADDRESS)]
+    #[arg(short, long, default_value = gstpop::websocket::DEFAULT_BIND_ADDRESS)]
     pub bind: String,
 
     /// Initial pipeline(s) to create
@@ -42,7 +42,7 @@ pub struct DaemonArgs {
     pub no_websocket: bool,
 
     /// API key for WebSocket authentication (optional)
-    #[arg(long, env = "GPOP_API_KEY", hide_env_values = true)]
+    #[arg(long, env = "GSTPOP_API_KEY", hide_env_values = true)]
     pub api_key: Option<String>,
 
     /// Allowed origins for WebSocket connections (optional, can be specified multiple times)
@@ -136,7 +136,7 @@ pub async fn run(args: DaemonArgs) -> i32 {
         if !is_loopback && args.api_key.is_none() {
             warn!(
                 "Binding to non-loopback address {} without --api-key is insecure. \
-                 Set GPOP_API_KEY or use --api-key to require authentication.",
+                 Set GSTPOP_API_KEY or use --api-key to require authentication.",
                 addr
             );
         }
@@ -166,9 +166,9 @@ pub async fn run(args: DaemonArgs) -> i32 {
     };
 
     // Wait for shutdown signal
-    info!("gpop daemon started. Press Ctrl+C to stop.");
+    info!("gstpop daemon started. Press Ctrl+C to stop.");
 
-    if let Err(e) = gpop::signal::wait_for_shutdown().await {
+    if let Err(e) = gstpop::signal::wait_for_shutdown().await {
         error!("{}", e);
         return 1;
     }

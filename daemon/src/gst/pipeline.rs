@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 
-use crate::error::{GpopError, Result};
+use crate::error::{GstpopError, Result};
 use crate::gst::event::{EventSender, PipelineEvent, PipelineState};
 
 /// Maximum length for pipeline descriptions to prevent memory exhaustion
@@ -71,14 +71,14 @@ impl Pipeline {
         // Validate description is not empty or whitespace-only
         let trimmed = description.trim();
         if trimmed.is_empty() {
-            return Err(GpopError::InvalidPipeline(
+            return Err(GstpopError::InvalidPipeline(
                 "Pipeline description cannot be empty".to_string(),
             ));
         }
 
         // Validate description length
         if description.len() > MAX_PIPELINE_DESCRIPTION_LENGTH {
-            return Err(GpopError::InvalidPipeline(format!(
+            return Err(GstpopError::InvalidPipeline(format!(
                 "Pipeline description too long: {} bytes (max: {} bytes)",
                 description.len(),
                 MAX_PIPELINE_DESCRIPTION_LENGTH
@@ -92,13 +92,13 @@ impl Pipeline {
             .map_err(|e| {
                 // Check if this is a media-related error (missing codec, unsupported format, etc.)
                 if let Some(msg) = is_media_not_supported_error(&e) {
-                    GpopError::MediaNotSupported(msg)
+                    GstpopError::MediaNotSupported(msg)
                 } else {
-                    GpopError::InvalidPipeline(e.to_string())
+                    GstpopError::InvalidPipeline(e.to_string())
                 }
             })?
             .downcast::<gst::Pipeline>()
-            .map_err(|_| GpopError::InvalidPipeline("Not a pipeline".to_string()))?;
+            .map_err(|_| GstpopError::InvalidPipeline("Not a pipeline".to_string()))?;
 
         info!("Created pipeline '{}': {}", id, description);
 
@@ -282,7 +282,7 @@ impl Pipeline {
         let gst_state: gst::State = state.into();
         self.pipeline
             .set_state(gst_state)
-            .map_err(|e| GpopError::StateChangeFailed(e.to_string()))?;
+            .map_err(|e| GstpopError::StateChangeFailed(e.to_string()))?;
 
         // Wait for state change with timeout
         let timeout = gst::ClockTime::from_seconds(STATE_CHANGE_TIMEOUT_SECS);
@@ -305,7 +305,7 @@ impl Pipeline {
                     }
                 }
             }
-            Err(_) => Err(GpopError::StateChangeFailed(format!(
+            Err(_) => Err(GstpopError::StateChangeFailed(format!(
                 "Failed to change state to {} for pipeline '{}'",
                 state, self.id
             ))),

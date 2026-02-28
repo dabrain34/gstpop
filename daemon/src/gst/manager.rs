@@ -13,7 +13,7 @@ use tokio::sync::{Mutex, RwLock};
 use tracing::{info, warn};
 
 use super::{MAX_PIPELINES, SHUTDOWN_GRACE_PERIOD_MS};
-use crate::error::{GpopError, Result};
+use crate::error::{GstpopError, Result};
 use crate::gst::event::{EventSender, PipelineEvent, PipelineState};
 use crate::gst::pipeline::Pipeline;
 
@@ -44,7 +44,7 @@ impl PipelineManager {
         {
             let pipelines = self.pipelines.read().await;
             if pipelines.len() >= MAX_PIPELINES {
-                return Err(GpopError::InvalidPipeline(format!(
+                return Err(GstpopError::InvalidPipeline(format!(
                     "Maximum number of pipelines ({}) reached",
                     MAX_PIPELINES
                 )));
@@ -66,7 +66,7 @@ impl PipelineManager {
             let p = pipeline.lock().await;
             let bus = p
                 .bus()
-                .ok_or_else(|| GpopError::InvalidPipeline("Pipeline has no bus".to_string()))?;
+                .ok_or_else(|| GstpopError::InvalidPipeline("Pipeline has no bus".to_string()))?;
             (bus, p.shutdown_flag(), p.pipeline_object())
         };
 
@@ -89,7 +89,7 @@ impl PipelineManager {
             let mut pipelines = self.pipelines.write().await;
             // Re-check limit under write lock to prevent TOCTOU race
             if pipelines.len() >= MAX_PIPELINES {
-                return Err(GpopError::InvalidPipeline(format!(
+                return Err(GstpopError::InvalidPipeline(format!(
                     "Maximum number of pipelines ({}) reached",
                     MAX_PIPELINES
                 )));
@@ -140,7 +140,7 @@ impl PipelineManager {
 
             Ok(())
         } else {
-            Err(GpopError::PipelineNotFound(id.to_string()))
+            Err(GstpopError::PipelineNotFound(id.to_string()))
         }
     }
 
@@ -149,7 +149,7 @@ impl PipelineManager {
         pipelines
             .get(id)
             .cloned()
-            .ok_or_else(|| GpopError::PipelineNotFound(id.to_string()))
+            .ok_or_else(|| GstpopError::PipelineNotFound(id.to_string()))
     }
 
     pub async fn get_pipeline_info(&self, id: &str) -> Result<PipelineInfo> {
@@ -264,7 +264,7 @@ impl PipelineManager {
             let p = new_pipeline.lock().await;
             let bus = p
                 .bus()
-                .ok_or_else(|| GpopError::InvalidPipeline("Pipeline has no bus".to_string()))?;
+                .ok_or_else(|| GstpopError::InvalidPipeline("Pipeline has no bus".to_string()))?;
             (bus, p.shutdown_flag(), p.pipeline_object())
         };
 
@@ -276,7 +276,7 @@ impl PipelineManager {
         if !pipelines.contains_key(id) {
             // Drop the new pipeline (will clean up resources)
             drop(new_pipeline);
-            return Err(GpopError::PipelineNotFound(id.to_string()));
+            return Err(GstpopError::PipelineNotFound(id.to_string()));
         }
 
         // Start bus watcher for the new pipeline (after confirming old pipeline exists)

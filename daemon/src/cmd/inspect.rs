@@ -9,7 +9,7 @@
 use clap::Args;
 use tracing::error;
 
-use gpop::gst::registry::{self, DetailLevel};
+use gstpop::gst::registry::{self, DetailLevel};
 
 /// Inspect GStreamer elements
 #[derive(Args, Debug)]

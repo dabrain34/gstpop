@@ -21,22 +21,22 @@
  *
  */
 
-#ifndef _GPOP_PRIVATE_H_
-#define _GPOP_PRIVATE_H_
+#ifndef _GSTPOP_PRIVATE_H_
+#define _GSTPOP_PRIVATE_H_
 
 #include <gio/gio.h>
 #include <glib.h>
 
-#include "gpop-dbus-interface.h"
-#include "gpop-manager.h"
-#include "gpop-parser.h"
-#include "gpop-pipeline.h"
+#include "gstpop-dbus-interface.h"
+#include "gstpop-manager.h"
+#include "gstpop-parser.h"
+#include "gstpop-pipeline.h"
 #include <gst/gst.h>
 
 
-#define GPOP_LOG(FMT, ...) do { \
+#define GSTPOP_LOG(FMT, ...) do { \
       g_print(FMT "\n", ##__VA_ARGS__); \
     } while (0)
 
 
-#endif /* _GPOP_PRIVATE_H_ */
+#endif /* _GSTPOP_PRIVATE_H_ */

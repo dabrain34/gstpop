@@ -9,7 +9,7 @@
 use clap::Args;
 use tracing::error;
 
-use gpop::gst::discoverer;
+use gstpop::gst::discoverer;
 
 /// Discover media information for a URI
 #[derive(Args, Debug)]

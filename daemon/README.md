@@ -1,4 +1,4 @@
-# gpop
+# gstpop
 
 GStreamer Prince of Parser - A pipeline management tool with WebSocket and DBus interfaces.
 
@@ -39,7 +39,7 @@ GStreamer Prince of Parser - A pipeline management tool with WebSocket and DBus 
 
 ## Overview
 
-`gpop` is a GStreamer pipeline management tool that allows you to create, control, and monitor GStreamer pipelines through WebSocket and DBus interfaces. It provides subcommands for running the daemon, playing pipelines, inspecting elements, and discovering media.
+`gstpop` is a GStreamer pipeline management tool that allows you to create, control, and monitor GStreamer pipelines through WebSocket and DBus interfaces. It provides subcommands for running the daemon, playing pipelines, inspecting elements, and discovering media.
 
 ## Features
 
@@ -56,7 +56,7 @@ GStreamer Prince of Parser - A pipeline management tool with WebSocket and DBus 
 daemon/src/
 ├── main.rs              # CLI entry point (clap), server startup, signal handling
 ├── lib.rs               # Public API re-exports
-├── error.rs             # GpopError enum (thiserror)
+├── error.rs             # GstpopError enum (thiserror)
 ├── gst/
 │   ├── mod.rs           # Module root, constants (MAX_PIPELINES, SHUTDOWN_GRACE_PERIOD_MS)
 │   ├── event.rs         # PipelineEvent enum, PipelineState, broadcast channel factory
@@ -70,8 +70,8 @@ daemon/src/
 │   └── protocol.rs      # JSON-RPC 2.0 Request/Response/error code definitions
 └── dbus/                # Linux only (gated with #[cfg(target_os = "linux")])
     ├── mod.rs           # DbusServer, event forwarder task
-    ├── manager.rs       # org.gpop.Manager interface (zbus)
-    └── pipeline.rs      # org.gpop.Pipeline interface (zbus)
+    ├── manager.rs       # org.gstpop.Manager interface (zbus)
+    └── pipeline.rs      # org.gstpop.Pipeline interface (zbus)
 ```
 
 ### Component Diagram
@@ -129,9 +129,9 @@ daemon/src/
 
 **JSON-RPC 2.0 over WebSocket.** The WebSocket server accepts TCP connections, performs the HTTP upgrade with optional API key authentication and origin validation, then spawns two tasks per client: one reads incoming JSON-RPC requests and routes them through `ManagerInterface`, the other forwards broadcast events. Per-client message channels are bounded (`CLIENT_MESSAGE_BUFFER = 256`) to apply backpressure to slow clients.
 
-**Platform-specific DBus.** The entire `dbus/` module is conditionally compiled with `#[cfg(target_os = "linux")]`. The `DbusServer` listens for `PipelineAdded`/`PipelineRemoved` events and dynamically registers/unregisters `org.gpop.Pipeline{N}` objects on the session bus via zbus.
+**Platform-specific DBus.** The entire `dbus/` module is conditionally compiled with `#[cfg(target_os = "linux")]`. The `DbusServer` listens for `PipelineAdded`/`PipelineRemoved` events and dynamically registers/unregisters `org.gstpop.Pipeline{N}` objects on the session bus via zbus.
 
-**Play subcommand.** The `gpop play` subcommand runs a dedicated tokio task that tracks pipeline completion events against a `HashSet<String>` of pending pipeline IDs. When all pipelines finish, a oneshot channel signals the main loop to exit with the appropriate exit code (0 for success, 1 for error, 69 for unsupported media).
+**Play subcommand.** The `gstpop play` subcommand runs a dedicated tokio task that tracks pipeline completion events against a `HashSet<String>` of pending pipeline IDs. When all pipelines finish, a oneshot channel signals the main loop to exit with the appropriate exit code (0 for success, 1 for error, 69 for unsupported media).
 
 ## Building
 
@@ -142,7 +142,7 @@ cd daemon
 cargo build --release
 ```
 
-The binary will be at `target/release/gpop`.
+The binary will be at `target/release/gstpop`.
 
 ### With Meson (full project)
 
@@ -153,7 +153,7 @@ meson setup builddir
 ninja -C builddir
 ```
 
-The binary will be at `builddir/release/gpop`.
+The binary will be at `builddir/release/gstpop`.
 
 To build only the daemon (without clients):
 
@@ -164,34 +164,34 @@ ninja -C builddir
 
 ## Running
 
-`gpop` uses subcommands. Run `gpop --help` or `gpop <subcommand> --help` for full details.
+`gstpop` uses subcommands. Run `gstpop --help` or `gstpop <subcommand> --help` for full details.
 
 ### Subcommands
 
 | Subcommand | Description |
 |------------|-------------|
-| `gpop daemon` | Start the WebSocket/DBus server |
-| `gpop play` | Play pipelines and exit when all finish |
-| `gpop inspect` | Inspect GStreamer elements |
-| `gpop discover` | Discover media information for a URI |
+| `gstpop daemon` | Start the WebSocket/DBus server |
+| `gstpop play` | Play pipelines and exit when all finish |
+| `gstpop inspect` | Inspect GStreamer elements |
+| `gstpop discover` | Discover media information for a URI |
 
 ### Running the Server
 
 ```bash
 # Default: bind to 127.0.0.1:9000
-gpop daemon
+gstpop daemon
 
 # Custom bind address and port
-gpop daemon --bind 0.0.0.0 --port 8080
+gstpop daemon --bind 0.0.0.0 --port 8080
 
 # With initial pipeline
-gpop daemon -p "videotestsrc ! autovideosink"
+gstpop daemon -p "videotestsrc ! autovideosink"
 
 # With authentication
-gpop daemon --api-key mysecretkey
+gstpop daemon --api-key mysecretkey
 
 # Enable debug logging
-RUST_LOG=debug gpop daemon
+RUST_LOG=debug gstpop daemon
 ```
 
 ### Daemon Options
@@ -210,7 +210,7 @@ RUST_LOG=debug gpop daemon
 
 | Variable | Description |
 |----------|-------------|
-| `GPOP_API_KEY` | API key for WebSocket authentication (alternative to `--api-key`) |
+| `GSTPOP_API_KEY` | API key for WebSocket authentication (alternative to `--api-key`) |
 | `RUST_LOG` | Log level (e.g., `debug`, `info`, `warn`, `error`) |
 
 ## Authentication
@@ -221,13 +221,13 @@ For deployments where the server is exposed on a network or in multi-user enviro
 
 ```bash
 # Via command line
-gpop daemon --api-key mysecretkey
+gstpop daemon --api-key mysecretkey
 
 # Via environment variable
-GPOP_API_KEY=mysecretkey gpop daemon
+GSTPOP_API_KEY=mysecretkey gstpop daemon
 
 # Combined with network binding
-gpop daemon --bind 0.0.0.0 --api-key mysecretkey
+gstpop daemon --bind 0.0.0.0 --api-key mysecretkey
 ```
 
 When authentication is enabled, clients must include the API key in the `Authorization` header during the WebSocket handshake:
@@ -295,14 +295,14 @@ curl -i -N \
 
 ## Play Subcommand
 
-The `gpop play` subcommand turns gpop into a batch pipeline runner. All pipelines specified with `--pipeline` are automatically played on startup and gpop exits when every pipeline has finished.
+The `gstpop play` subcommand turns gstpop into a batch pipeline runner. All pipelines specified with `--pipeline` are automatically played on startup and gstpop exits when every pipeline has finished.
 
 ```bash
 # Play a single pipeline and exit on EOS
-gpop play -p "filesrc location=video.mp4 ! decodebin ! fakesink"
+gstpop play -p "filesrc location=video.mp4 ! decodebin ! fakesink"
 
 # Play multiple pipelines in parallel, exit when all finish
-gpop play \
+gstpop play \
   -p "filesrc location=video1.mp4 ! decodebin ! fakesink" \
   -p "filesrc location=video2.mp4 ! decodebin ! fakesink"
 ```
@@ -855,16 +855,16 @@ Goodbye!
 
 ## DBus Interface (Linux only)
 
-On Linux, gpop also exposes a DBus interface on the session bus.
+On Linux, gstpop also exposes a DBus interface on the session bus.
 
 ### Service Name
 
-`org.gpop`
+`org.gstpop`
 
 ### Manager Interface
 
-**Path:** `/org/gpop/Manager`
-**Interface:** `org.gpop.Manager`
+**Path:** `/org/gstpop/Manager`
+**Interface:** `org.gstpop.Manager`
 
 #### Methods
 
@@ -886,8 +886,8 @@ On Linux, gpop also exposes a DBus interface on the session bus.
 
 ### Pipeline Interface
 
-**Path:** `/org/gpop/Pipeline{N}` (e.g., `/org/gpop/Pipeline0`)
-**Interface:** `org.gpop.Pipeline`
+**Path:** `/org/gstpop/Pipeline{N}` (e.g., `/org/gstpop/Pipeline0`)
+**Interface:** `org.gstpop.Pipeline`
 
 #### Methods
 
@@ -916,36 +916,36 @@ On Linux, gpop also exposes a DBus interface on the session bus.
 
 ```bash
 # List pipelines count
-dbus-send --session --print-reply --dest=org.gpop \
-  /org/gpop/Manager org.freedesktop.DBus.Properties.Get \
-  string:org.gpop.Manager string:Pipelines
+dbus-send --session --print-reply --dest=org.gstpop \
+  /org/gstpop/Manager org.freedesktop.DBus.Properties.Get \
+  string:org.gstpop.Manager string:Pipelines
 
 # Get GStreamer version
-dbus-send --session --print-reply --dest=org.gpop \
-  /org/gpop/Manager org.freedesktop.DBus.Properties.Get \
-  string:org.gpop.Manager string:GStreamerVersion
+dbus-send --session --print-reply --dest=org.gstpop \
+  /org/gstpop/Manager org.freedesktop.DBus.Properties.Get \
+  string:org.gstpop.Manager string:GStreamerVersion
 
 # Create a pipeline
-dbus-send --session --print-reply --dest=org.gpop \
-  /org/gpop/Manager org.gpop.Manager.AddPipeline \
+dbus-send --session --print-reply --dest=org.gstpop \
+  /org/gstpop/Manager org.gstpop.Manager.AddPipeline \
   string:"videotestsrc ! fakesink"
 
 # Play a pipeline
-dbus-send --session --print-reply --dest=org.gpop \
-  /org/gpop/Pipeline0 org.gpop.Pipeline.Play
+dbus-send --session --print-reply --dest=org.gstpop \
+  /org/gstpop/Pipeline0 org.gstpop.Pipeline.Play
 
 # Get DOT graph (all details)
-dbus-send --session --print-reply --dest=org.gpop \
-  /org/gpop/Pipeline0 org.gpop.Pipeline.GetDot \
+dbus-send --session --print-reply --dest=org.gstpop \
+  /org/gstpop/Pipeline0 org.gstpop.Pipeline.GetDot \
   string:""
 
 # Get position/duration
-dbus-send --session --print-reply --dest=org.gpop \
-  /org/gpop/Pipeline0 org.gpop.Pipeline.GetPosition
+dbus-send --session --print-reply --dest=org.gstpop \
+  /org/gstpop/Pipeline0 org.gstpop.Pipeline.GetPosition
 
 # Update pipeline
-dbus-send --session --print-reply --dest=org.gpop \
-  /org/gpop/Pipeline0 org.gpop.Pipeline.Update \
+dbus-send --session --print-reply --dest=org.gstpop \
+  /org/gstpop/Pipeline0 org.gstpop.Pipeline.Update \
   string:"videotestsrc pattern=ball ! fakesink"
 ```
 

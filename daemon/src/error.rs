@@ -9,7 +9,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum GpopError {
+pub enum GstpopError {
     #[error("GStreamer error: {0}")]
     GStreamer(String),
 
@@ -42,4 +42,4 @@ pub enum GpopError {
     Io(#[from] std::io::Error),
 }
 
-pub type Result<T> = std::result::Result<T, GpopError>;
+pub type Result<T> = std::result::Result<T, GstpopError>;

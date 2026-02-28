@@ -17,7 +17,7 @@ pub struct PipelineInterface {
     pub pipeline_id: String,
 }
 
-#[interface(name = "org.gpop.Pipeline")]
+#[interface(name = "org.gstpop.Pipeline")]
 impl PipelineInterface {
     async fn set_state(&self, state: &str) -> zbus::fdo::Result<bool> {
         let state: PipelineState = state
@@ -160,7 +160,7 @@ impl PipelineInterface {
     }
 
     pub fn object_path(index: u32) -> ObjectPath<'static> {
-        ObjectPath::try_from(format!("/org/gpop/Pipeline{}", index))
+        ObjectPath::try_from(format!("/org/gstpop/Pipeline{}", index))
             .expect("u32 index always produces valid D-Bus object path")
     }
 }

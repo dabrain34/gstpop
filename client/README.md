@@ -1,19 +1,19 @@
-# gpop Clients
+# gstpop Clients
 
-Interactive WebSocket clients for controlling gpop. Both clients implement the same JSON-RPC 2.0 protocol and provide identical functionality.
+Interactive WebSocket clients for controlling gstpop. Both clients implement the same JSON-RPC 2.0 protocol and provide identical functionality.
 
 ## Available Clients
 
 | Client | Language | Location | Dependencies |
 |--------|----------|----------|--------------|
-| gpop-client | Rust | `rust/` | tokio, tungstenite, serde_json, rustyline |
-| gpop-client-c | C | `c/` | libsoup-2.4, json-glib, glib, readline |
+| gstpop-client | Rust | `rust/` | tokio, tungstenite, serde_json, rustyline |
+| gstpop-client-c | C | `c/` | libsoup-2.4, json-glib, glib, readline |
 
 ## Features
 
 - **Command history**: Use up/down arrow keys to navigate through previously entered commands (session-only, not persisted to disk)
 - **Line editing**: Full readline-style editing with cursor movement, delete, backspace, etc.
-- **JSON-RPC 2.0**: Standard protocol for communication with gpop
+- **JSON-RPC 2.0**: Standard protocol for communication with gstpop
 - **Event handling**: Asynchronous display of pipeline events while maintaining input prompt
 
 ## Building
@@ -21,26 +21,26 @@ Interactive WebSocket clients for controlling gpop. Both clients implement the s
 ### Rust Client
 
 ```bash
-cargo build --release -p gpop-client
-# Binary: target/release/gpop-client
+cargo build --release -p gstpop-client
+# Binary: target/release/gstpop-client
 ```
 
 ### C Client
 
 ```bash
 meson setup builddir
-ninja -C builddir gpop-client-c
-# Binary: builddir/client/c/gpop-client-c
+ninja -C builddir gstpop-client-c
+# Binary: builddir/client/c/gstpop-client-c
 ```
 
 ## Usage
 
 ```bash
 # Connect to default address (ws://127.0.0.1:9000)
-./gpop-client
+./gstpop-client
 
 # Connect to custom address
-./gpop-client ws://192.168.1.100:8080
+./gstpop-client ws://192.168.1.100:8080
 ```
 
 ## Commands
@@ -71,7 +71,7 @@ For the `snapshot` command: `media`, `caps`, `states`, `all` (optional, defaults
 
 ## Protocol
 
-Both clients communicate with gpop using JSON-RPC 2.0 over WebSocket.
+Both clients communicate with gstpop using JSON-RPC 2.0 over WebSocket.
 
 ### Request Format
 
@@ -126,7 +126,7 @@ Event types: `state_changed`, `error`, `eos`, `pipeline_added`, `pipeline_update
 ## Example Session
 
 ```
-$ ./gpop-client
+$ ./gstpop-client
 Connecting to ws://127.0.0.1:8444...
 Connected!
 

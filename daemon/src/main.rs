@@ -13,7 +13,7 @@ use tracing_subscriber::EnvFilter;
 mod cmd;
 
 #[derive(Parser, Debug)]
-#[command(name = "gpop")]
+#[command(name = "gstpop")]
 #[command(author = "Stéphane Cerveau")]
 #[command(version)]
 #[command(about = "GStreamer Prince of Parser - Pipeline management tool")]
@@ -41,7 +41,9 @@ enum Commands {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive("gpop=info".parse().unwrap()))
+        .with_env_filter(
+            EnvFilter::from_default_env().add_directive("gstpop=info".parse().unwrap()),
+        )
         .init();
 
     // Initialize GStreamer once for all subcommands

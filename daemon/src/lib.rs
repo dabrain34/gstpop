@@ -14,7 +14,7 @@ pub mod playback;
 pub mod signal;
 pub mod websocket;
 
-pub use error::{GpopError, Result};
+pub use error::{GstpopError, Result};
 pub use gst::{
     create_event_channel, Pipeline, PipelineEvent, PipelineInfo, PipelineManager, PipelineState,
 };

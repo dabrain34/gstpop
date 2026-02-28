@@ -1,20 +1,20 @@
-# C WebSocket client for gpop
+# C WebSocket client for gstpop
 
 # readline doesn't have pkg-config, use compiler.find_library
 cc = meson.get_compiler('c')
 readline_dep = cc.find_library('readline', required: true)
 
-gpop_client_c_sources = [
+gstpop_client_c_sources = [
   'src/main.c',
 ]
 
-gpop_client_c_deps = [
-  libgpop_dep,
+gstpop_client_c_deps = [
+  libgstpop_dep,
   readline_dep,
 ]
 
-executable('gpop-client-c',
-  gpop_client_c_sources,
-  dependencies: gpop_client_c_deps,
+executable('gstpop-client-c',
+  gstpop_client_c_sources,
+  dependencies: gstpop_client_c_deps,
   install: true,
 )

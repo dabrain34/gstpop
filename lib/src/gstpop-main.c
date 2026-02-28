@@ -22,7 +22,7 @@
  */
 
 
-#include "gpop-private.h"
+#include "gstpop-private.h"
 
 #ifdef G_OS_UNIX
 #include <glib-unix.h>
@@ -32,7 +32,7 @@
 
 typedef struct _MainApp
 {
-  GPOPManager *manager;
+  GSTPOPManager *manager;
   GMainLoop *loop;
 #ifdef G_OS_UNIX
   guint signal_watch_intr_id;
@@ -55,7 +55,7 @@ intr_handler (gpointer user_data)
 {
   MainApp *app = (MainApp *) user_data;
 
-  GPOP_LOG ("handling interrupt.");
+  GSTPOP_LOG ("handling interrupt.");
   quit_app (app);
   /* remove signal handler */
   app->signal_watch_intr_id = 0;
@@ -72,15 +72,15 @@ on_bus_acquired (GDBusConnection * connection,
   gchar **pipeline_desc;
   MainApp *app = (MainApp *) user_data;
 
-  GPOP_LOG ("Acquired a message bus connection %s", name);
+  GSTPOP_LOG ("Acquired a message bus connection %s", name);
 
   /* Create a new manager */
-  app->manager = gpop_manager_new (connection);
+  app->manager = gstpop_manager_new (connection);
 
   /* Add hardcoded edge to the manager */
   for (pipeline_desc = app->pipeline_desc_array;
       pipeline_desc != NULL && *pipeline_desc != NULL; ++pipeline_desc) {
-    gpop_manager_add_pipeline (app->manager, i++, *pipeline_desc, NULL);
+    gstpop_manager_add_pipeline (app->manager, i++, *pipeline_desc, NULL);
   }
 }
 
@@ -88,19 +88,19 @@ static void
 on_name_acquired (GDBusConnection * connection,
     const gchar * name, gpointer user_data)
 {
-  GPOP_LOG ("Acquired the name %s", name);
+  GSTPOP_LOG ("Acquired the name %s", name);
 }
 
 static void
 on_name_lost (GDBusConnection * connection,
     const gchar * name, gpointer user_data)
 {
-  GPOP_LOG ("Lost the name %s", name);
+  GSTPOP_LOG ("Lost the name %s", name);
 }
 
 
 gint
-gpop_main (gint argc, gchar * argv[])
+gstpop_main (gint argc, gchar * argv[])
 {
   int res = 0;
   GError *err = NULL;
@@ -120,7 +120,7 @@ gpop_main (gint argc, gchar * argv[])
   g_option_context_add_main_entries (ctx, options, NULL);
   g_option_context_add_group (ctx, gst_init_get_option_group ());
   if (!g_option_context_parse (ctx, &argc, &argv, &err)) {
-    GPOP_LOG ("Error initializing: %s", err->message);
+    GSTPOP_LOG ("Error initializing: %s", err->message);
     res = -1;
     goto done;
   }
@@ -129,7 +129,7 @@ gpop_main (gint argc, gchar * argv[])
   app->loop = g_main_loop_new (NULL, FALSE);
 
   dbus_id = g_bus_own_name (G_BUS_TYPE_SESSION,
-      "org.gpop",
+      "org.gstpop",
       G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT |
       G_BUS_NAME_OWNER_FLAGS_REPLACE,
       on_bus_acquired, on_name_acquired, on_name_lost, app, NULL);
@@ -145,7 +145,7 @@ done:
     g_bus_unown_name (dbus_id);
   if (app->loop)
     g_main_loop_unref (app->loop);
-  gpop_manager_free (app->manager);
+  gstpop_manager_free (app->manager);
   g_strfreev (app->pipeline_desc_array);
 
   g_free (app);

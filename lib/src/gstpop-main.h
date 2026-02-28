@@ -21,9 +21,9 @@
  *
  */
 
-#ifndef _GPOP_MAIN_H_
-#define _GPOP_MAIN_H_
+#ifndef _GSTPOP_MAIN_H_
+#define _GSTPOP_MAIN_H_
 
-int gpop_main (int argc, char * argv[]);
+int gstpop_main (int argc, char * argv[]);
 
-#endif /* _GPOP_MAIN_H_ */
+#endif /* _GSTPOP_MAIN_H_ */

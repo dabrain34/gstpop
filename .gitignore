@@ -2,5 +2,5 @@
 build*
 
 # Rust
-gpop-rs/target/
+gstpop-rs/target/
 target/

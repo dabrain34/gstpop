@@ -317,7 +317,7 @@ async fn handle_connection(
                                 )
                             }
                         },
-                        Err(e) => super::protocol::Response::from_gpop_error(request.id, &e),
+                        Err(e) => super::protocol::Response::from_gstpop_error(request.id, &e),
                     };
                     serialize_or_error(&response)
                 } else {
