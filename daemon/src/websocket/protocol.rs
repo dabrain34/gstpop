@@ -145,21 +145,30 @@ impl Response {
         )
     }
 
-    /// Create a server error response from a GpopError
-    pub fn from_gpop_error(id: Value, err: &crate::error::GpopError) -> Self {
-        use crate::error::GpopError;
+    /// Create a server error response from a GstpopError
+    pub fn from_gstpop_error(id: Value, err: &crate::error::GstpopError) -> Self {
+        use crate::error::GstpopError;
 
         let (code, message) = match err {
-            GpopError::PipelineNotFound(pid) => (
+            GstpopError::PipelineNotFound(pid) => (
                 error_codes::PIPELINE_NOT_FOUND,
                 format!("Pipeline not found: {}", pid),
             ),
-            GpopError::InvalidPipeline(msg) => (error_codes::PIPELINE_CREATION_FAILED, msg.clone()),
-            GpopError::StateChangeFailed(msg) => (error_codes::STATE_CHANGE_FAILED, msg.clone()),
-            GpopError::MediaNotSupported(msg) => (error_codes::MEDIA_NOT_SUPPORTED, msg.clone()),
-            GpopError::DiscoveryFailed(msg) => (error_codes::DISCOVERY_FAILED, msg.clone()),
-            GpopError::GStreamer(msg) => (error_codes::GSTREAMER_ERROR, msg.clone()),
-            _ => (error_codes::INTERNAL_ERROR, "Internal error".to_string()),
+            GstpopError::InvalidPipeline(msg) => {
+                (error_codes::PIPELINE_CREATION_FAILED, msg.clone())
+            }
+            GstpopError::StateChangeFailed(msg) => (error_codes::STATE_CHANGE_FAILED, msg.clone()),
+            GstpopError::MediaNotSupported(msg) => (error_codes::MEDIA_NOT_SUPPORTED, msg.clone()),
+            GstpopError::DiscoveryFailed(msg) => (error_codes::DISCOVERY_FAILED, msg.clone()),
+            GstpopError::GStreamer(msg) => (error_codes::GSTREAMER_ERROR, msg.clone()),
+            GstpopError::WebSocket(msg) => (
+                error_codes::INTERNAL_ERROR,
+                format!("WebSocket error: {}", msg),
+            ),
+            GstpopError::Json(e) => (error_codes::INTERNAL_ERROR, format!("JSON error: {}", e)),
+            GstpopError::Io(e) => (error_codes::INTERNAL_ERROR, format!("IO error: {}", e)),
+            #[cfg(target_os = "linux")]
+            GstpopError::DBus(e) => (error_codes::INTERNAL_ERROR, format!("DBus error: {}", e)),
         };
 
         Self::error(id, code, message)

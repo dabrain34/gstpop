@@ -21,17 +21,17 @@
  *
  */
 
-#include "gpop-private.h"
+#include "gstpop-private.h"
 
-G_DEFINE_TYPE (GPOPManager, gpop_manager, GPOP_TYPE_DBUS_INTERFACE);
-#define parent_class gpop_manager_parent_class
+G_DEFINE_TYPE (GSTPOPManager, gstpop_manager, GSTPOP_TYPE_DBUS_INTERFACE);
+#define parent_class gstpop_manager_parent_class
 
-#define GPOP_MANAGER_OBJECT_PATH "/org/gpop/Manager"
+#define GSTPOP_MANAGER_OBJECT_PATH "/org/gstpop/Manager"
 
-const char gpop_manager_xml_introspection[] =
+const char gstpop_manager_xml_introspection[] =
     "<?xml version='1.0' encoding='UTF-8' ?>"
     "<node>"
-    "    <interface name='org.gpop.Manager'>"
+    "    <interface name='org.gstpop.Manager'>"
     "        <method name='GetPipelineDesc'>"
     "		<arg type='s' name='id' direction='in'/>"
     "		<arg type='s' name='desc' direction='out'/>"
@@ -47,19 +47,19 @@ const char gpop_manager_xml_introspection[] =
     "    </interface>" "</node>";
 
 static guint
-gpop_manager_pipelines_count (GPOPManager * manager)
+gstpop_manager_pipelines_count (GSTPOPManager * manager)
 {
   return g_list_length (manager->pipelines);
 }
 
-static GPOPPipeline *
-gpop_manager_get_pipeline_by_id (GPOPManager * manager, gchar * id)
+static GSTPOPPipeline *
+gstpop_manager_get_pipeline_by_id (GSTPOPManager * manager, gchar * id)
 {
   GList *l;
-  GPOPPipeline *pipeline = NULL;
+  GSTPOPPipeline *pipeline = NULL;
 
   for (l = manager->pipelines; l != NULL; l = g_list_next (l)) {
-    pipeline = (GPOPPipeline *) l->data;
+    pipeline = (GSTPOPPipeline *) l->data;
     if (!g_strcmp0 (pipeline->id, id))
       return pipeline;
   }
@@ -67,7 +67,7 @@ gpop_manager_get_pipeline_by_id (GPOPManager * manager, gchar * id)
 }
 
 static void
-gpop_manager_dbus_method_call (GDBusConnection * connection,
+gstpop_manager_dbus_method_call (GDBusConnection * connection,
     const gchar * sender,
     const gchar * object_path,
     const gchar * interface_name,
@@ -75,14 +75,14 @@ gpop_manager_dbus_method_call (GDBusConnection * connection,
     GVariant * parameters,
     GDBusMethodInvocation * invocation, gpointer user_data)
 {
-  GPOPManager *manager = (GPOPManager *) user_data;
+  GSTPOPManager *manager = (GSTPOPManager *) user_data;
   GVariant *ret = NULL;
   if (!g_strcmp0 (method_name, "GetPipelineDesc")) {
     gchar *id;
-    GPOPPipeline *pipeline;
+    GSTPOPPipeline *pipeline;
     g_variant_get (parameters, "(s)", &id);
 
-    pipeline = gpop_manager_get_pipeline_by_id (manager, id);
+    pipeline = gstpop_manager_get_pipeline_by_id (manager, id);
     g_free (id);
     if (pipeline) {
       ret = g_variant_new ("(s)", pipeline->parser_desc);
@@ -91,13 +91,13 @@ gpop_manager_dbus_method_call (GDBusConnection * connection,
   } else if (!g_strcmp0 (method_name, "AddPipeline")) {
     gchar *parser_desc;
     g_variant_get (parameters, "(s)", &parser_desc);
-    gpop_manager_add_pipeline (manager, gpop_manager_pipelines_count (manager),
+    gstpop_manager_add_pipeline (manager, gstpop_manager_pipelines_count (manager),
         parser_desc, NULL);
     g_free (parser_desc);
   } else if (!g_strcmp0 (method_name, "RemovePipeline")) {
     gchar *id;
     g_variant_get (parameters, "(s)", &id);
-    gpop_manager_remove_pipeline (manager, id);
+    gstpop_manager_remove_pipeline (manager, id);
     g_free (id);
   }
 
@@ -106,14 +106,14 @@ gpop_manager_dbus_method_call (GDBusConnection * connection,
 }
 
 GVariant *
-gpop_manager_dbus_get_property (GDBusConnection * connection,
+gstpop_manager_dbus_get_property (GDBusConnection * connection,
     const gchar * sender,
     const gchar * object_path,
     const gchar * interface_name,
     const gchar * property_name, GError ** error, gpointer user_data)
 {
   GVariant *ret = NULL;
-  GPOPManager *manager = (GPOPManager *) user_data;
+  GSTPOPManager *manager = (GSTPOPManager *) user_data;
   if (!g_strcmp0 (property_name, "Pipelines")) {
     ret = g_variant_new ("i", g_list_length (manager->pipelines));
   } else if (!g_strcmp0 (property_name, "Version")) {
@@ -123,7 +123,7 @@ gpop_manager_dbus_get_property (GDBusConnection * connection,
 }
 
 static gboolean
-gpop_manager_dbus_set_property (GDBusConnection * connection,
+gstpop_manager_dbus_set_property (GDBusConnection * connection,
     const gchar * sender,
     const gchar * object_path,
     const gchar * interface_name,
@@ -136,45 +136,45 @@ gpop_manager_dbus_set_property (GDBusConnection * connection,
 }
 
 static void
-gpop_manager_dispose (GObject * object)
+gstpop_manager_dispose (GObject * object)
 {
 
-  GPOPManager *manager = GPOP_MANAGER (object);
+  GSTPOPManager *manager = GSTPOP_MANAGER (object);
 
-  g_list_free_full (manager->pipelines, (GDestroyNotify) gpop_pipeline_free);
+  g_list_free_full (manager->pipelines, (GDestroyNotify) gstpop_pipeline_free);
 
   if (G_OBJECT_CLASS (parent_class)->dispose)
     G_OBJECT_CLASS (parent_class)->dispose (object);
 }
 
 static void
-gpop_manager_class_init (GPOPManagerClass * klass)
+gstpop_manager_class_init (GSTPOPManagerClass * klass)
 {
-  GPOPDBusInterfaceClass *d_klass;
+  GSTPOPDBusInterfaceClass *d_klass;
   GObjectClass *gobject_class;
 
   parent_class = g_type_class_peek_parent (klass);
 
   gobject_class = G_OBJECT_CLASS (klass);
-  gobject_class->dispose = gpop_manager_dispose;
+  gobject_class->dispose = gstpop_manager_dispose;
 
-  d_klass = GPOP_DBUS_INTERFACE_CLASS (klass);
-  d_klass->method_call = gpop_manager_dbus_method_call;
-  d_klass->get_property = gpop_manager_dbus_get_property;
-  d_klass->set_property = gpop_manager_dbus_set_property;
+  d_klass = GSTPOP_DBUS_INTERFACE_CLASS (klass);
+  d_klass->method_call = gstpop_manager_dbus_method_call;
+  d_klass->get_property = gstpop_manager_dbus_get_property;
+  d_klass->set_property = gstpop_manager_dbus_set_property;
 }
 
 static void
-gpop_manager_init (GPOPManager * manager)
+gstpop_manager_init (GSTPOPManager * manager)
 {
 }
 
-GPOPManager *
-gpop_manager_new (GDBusConnection * connection)
+GSTPOPManager *
+gstpop_manager_new (GDBusConnection * connection)
 {
-  GPOPManager *manager = g_object_new (GPOP_TYPE_MANAGER, NULL);
-  if (gpop_dbus_interface_register (GPOP_DBUS_INTERFACE (manager),
-          GPOP_MANAGER_OBJECT_PATH, gpop_manager_xml_introspection, connection))
+  GSTPOPManager *manager = g_object_new (GSTPOP_TYPE_MANAGER, NULL);
+  if (gstpop_dbus_interface_register (GSTPOP_DBUS_INTERFACE (manager),
+          GSTPOP_MANAGER_OBJECT_PATH, gstpop_manager_xml_introspection, connection))
     return manager;
   else {
     g_object_unref (manager);
@@ -183,41 +183,41 @@ gpop_manager_new (GDBusConnection * connection)
 }
 
 void
-gpop_manager_free (GPOPManager * manager)
+gstpop_manager_free (GSTPOPManager * manager)
 {
   g_clear_object (&manager);
 }
 
 void
-gpop_manager_add_pipeline (GPOPManager * manager, guint num, const gchar * parser_desc, gchar* id)
+gstpop_manager_add_pipeline (GSTPOPManager * manager, guint num, const gchar * parser_desc, gchar* id)
 {
-  GPOPPipeline *pipeline =
-      gpop_pipeline_new (manager, manager->base.connection, num);
+  GSTPOPPipeline *pipeline =
+      gstpop_pipeline_new (manager, manager->base.connection, num);
 
   if (id)
     pipeline->id = g_strdup (id);
   else
     pipeline->id = g_strdup_printf ("pipeline_%u", num);
 
-  if (gpop_pipeline_set_parser_desc (pipeline, parser_desc)) {
-    GPOP_LOG
+  if (gstpop_pipeline_set_parser_desc (pipeline, parser_desc)) {
+    GSTPOP_LOG
         ("An pipeline with id '%s' has been created successfully for description '%s'",
         pipeline->id, parser_desc);
     manager->pipelines = g_list_append (manager->pipelines, pipeline);
   } else {
-    GPOP_LOG ("Unable to add the pipeline with description %s", parser_desc);
-    gpop_pipeline_free (pipeline);
+    GSTPOP_LOG ("Unable to add the pipeline with description %s", parser_desc);
+    gstpop_pipeline_free (pipeline);
   }
 }
 
 void
-gpop_manager_remove_pipeline (GPOPManager * manager, gchar* id)
+gstpop_manager_remove_pipeline (GSTPOPManager * manager, gchar* id)
 {
-  GPOPPipeline *pipeline = gpop_manager_get_pipeline_by_id (manager, id);
+  GSTPOPPipeline *pipeline = gstpop_manager_get_pipeline_by_id (manager, id);
   if (!pipeline) {
-    GPOP_LOG ("pipeline with id %s does not exist", id);
+    GSTPOP_LOG ("pipeline with id %s does not exist", id);
     return;
   }
   manager->pipelines = g_list_remove (manager->pipelines, pipeline);
-  gpop_pipeline_free (pipeline);
+  gstpop_pipeline_free (pipeline);
 }

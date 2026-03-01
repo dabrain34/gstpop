@@ -21,17 +21,17 @@
  *
  */
 
-#include "gpop-private.h"
+#include "gstpop-private.h"
 
-G_DEFINE_TYPE (GPOPPipeline, gpop_pipeline, GPOP_TYPE_DBUS_INTERFACE);
-#define parent_class gpop_pipeline_parent_class
+G_DEFINE_TYPE (GSTPOPPipeline, gstpop_pipeline, GSTPOP_TYPE_DBUS_INTERFACE);
+#define parent_class gstpop_pipeline_parent_class
 
-#define GPOP_PIPELINE_OBJECT_PATH "/org/gpop/Pipeline%d"
+#define GSTPOP_PIPELINE_OBJECT_PATH "/org/gstpop/Pipeline%d"
 
-const char gpop_pipeline_xml_introspection[] =
+const char gstpop_pipeline_xml_introspection[] =
     "<?xml version='1.0' encoding='UTF-8' ?>"
     "<node>"
-    "    <interface name='org.gpop.GPOPInterface'>"
+    "    <interface name='org.gstpop.Pipeline'>"
     "       <property name='parser_desc' type='s' access='read'/>"
     "       <property name='id' type='s' access='read'/>"
     "       <property name='streaming' type='b' access='read'/>"
@@ -39,7 +39,7 @@ const char gpop_pipeline_xml_introspection[] =
 
 
 static void
-gpop_pipeline_dbus_method_call (GDBusConnection * connection,
+gstpop_pipeline_dbus_method_call (GDBusConnection * connection,
     const gchar * sender,
     const gchar * object_path,
     const gchar * interface_name,
@@ -50,26 +50,26 @@ gpop_pipeline_dbus_method_call (GDBusConnection * connection,
 }
 
 GVariant *
-gpop_pipeline_dbus_get_property (GDBusConnection * connection,
+gstpop_pipeline_dbus_get_property (GDBusConnection * connection,
     const gchar * sender,
     const gchar * object_path,
     const gchar * interface_name,
     const gchar * property_name, GError ** error, gpointer user_data)
 {
   GVariant *ret = NULL;
-  GPOPPipeline *pipeline = (GPOPPipeline *) user_data;
+  GSTPOPPipeline *pipeline = (GSTPOPPipeline *) user_data;
   if (!g_strcmp0 (property_name, "parser_desc")) {
     ret = g_variant_new ("s", pipeline->parser_desc);
   } else if (!g_strcmp0 (property_name, "id")) {
     ret = g_variant_new ("s", pipeline->id);
   } else if (!g_strcmp0 (property_name, "streaming")) {
-    ret = g_variant_new ("b", gpop_parser_is_playing (pipeline->parser));
+    ret = g_variant_new ("b", gstpop_parser_is_playing (pipeline->parser));
   }
   return ret;
 }
 
 static gboolean
-gpop_pipeline_dbus_set_property (GDBusConnection * connection,
+gstpop_pipeline_dbus_set_property (GDBusConnection * connection,
     const gchar * sender,
     const gchar * object_path,
     const gchar * interface_name,
@@ -83,17 +83,17 @@ gpop_pipeline_dbus_set_property (GDBusConnection * connection,
 }
 
 static void
-_gpop_pipeline_clear_desc (GPOPPipeline * pipeline)
+_gstpop_pipeline_clear_desc (GSTPOPPipeline * pipeline)
 {
   g_clear_pointer (&pipeline->parser_desc, g_free);
 }
 
 static void
-gpop_pipeline_dispose (GObject * object)
+gstpop_pipeline_dispose (GObject * object)
 {
-  GPOPPipeline *pipeline = GPOP_PIPELINE (object);
+  GSTPOPPipeline *pipeline = GSTPOP_PIPELINE (object);
 
-  _gpop_pipeline_clear_desc (pipeline);
+  _gstpop_pipeline_clear_desc (pipeline);
   g_clear_pointer (&pipeline->id, g_free);
   g_clear_object (&pipeline->manager);
   g_clear_object (&pipeline->parser);
@@ -103,56 +103,56 @@ gpop_pipeline_dispose (GObject * object)
 }
 
 static void
-gpop_pipeline_class_init (GPOPPipelineClass * klass)
+gstpop_pipeline_class_init (GSTPOPPipelineClass * klass)
 {
-  GPOPDBusInterfaceClass *d_klass;
+  GSTPOPDBusInterfaceClass *d_klass;
   GObjectClass *gobject_class;
 
   parent_class = g_type_class_peek_parent (klass);
 
   gobject_class = G_OBJECT_CLASS (klass);
-  gobject_class->dispose = gpop_pipeline_dispose;
+  gobject_class->dispose = gstpop_pipeline_dispose;
 
-  d_klass = GPOP_DBUS_INTERFACE_CLASS (klass);
-  d_klass->method_call = gpop_pipeline_dbus_method_call;
-  d_klass->get_property = gpop_pipeline_dbus_get_property;
-  d_klass->set_property = gpop_pipeline_dbus_set_property;
+  d_klass = GSTPOP_DBUS_INTERFACE_CLASS (klass);
+  d_klass->method_call = gstpop_pipeline_dbus_method_call;
+  d_klass->get_property = gstpop_pipeline_dbus_get_property;
+  d_klass->set_property = gstpop_pipeline_dbus_set_property;
 }
 
 static void
-gpop_pipeline_init (GPOPPipeline * pipeline)
+gstpop_pipeline_init (GSTPOPPipeline * pipeline)
 {
 }
 
 static void
-on_stream_state (GPOPParser * parser, GPOPParserState state,
+on_stream_state (GSTPOPParser * parser, GSTPOPParserState state,
     gpointer user_data)
 {
-  GPOP_LOG ("state %d", state);
+  GSTPOP_LOG ("state %d", state);
 
-  if (state >= GPOP_PARSER_EOS) {
-    gpop_parser_quit (parser);
+  if (state >= GSTPOP_PARSER_EOS) {
+    gstpop_parser_quit (parser);
   }
 }
 
 /* Public API */
 
-GPOPPipeline *
-gpop_pipeline_new (GPOPManager * manager, GDBusConnection * connection,
+GSTPOPPipeline *
+gstpop_pipeline_new (GSTPOPManager * manager, GDBusConnection * connection,
     guint num)
 {
-  GPOPPipeline *pipeline = g_object_new (GPOP_TYPE_PIPELINE, NULL);
-  gchar *object_path = g_strdup_printf (GPOP_PIPELINE_OBJECT_PATH, num);
+  GSTPOPPipeline *pipeline = g_object_new (GSTPOP_TYPE_PIPELINE, NULL);
+  gchar *object_path = g_strdup_printf (GSTPOP_PIPELINE_OBJECT_PATH, num);
   pipeline->manager = g_object_ref (manager);
 
-  if (!gpop_dbus_interface_register (GPOP_DBUS_INTERFACE (pipeline),
-          object_path, gpop_pipeline_xml_introspection, connection)) {
+  if (!gstpop_dbus_interface_register (GSTPOP_DBUS_INTERFACE (pipeline),
+          object_path, gstpop_pipeline_xml_introspection, connection)) {
       g_object_unref (pipeline);
       g_free (object_path);
       return NULL;
   }
 
-  pipeline->parser = gpop_parser_new ();
+  pipeline->parser = gstpop_parser_new ();
   g_signal_connect (pipeline->parser, "state-changed",
       G_CALLBACK (on_stream_state), pipeline);
 
@@ -161,24 +161,24 @@ gpop_pipeline_new (GPOPManager * manager, GDBusConnection * connection,
 }
 
 void
-gpop_pipeline_free (GPOPPipeline * pipeline)
+gstpop_pipeline_free (GSTPOPPipeline * pipeline)
 {
   g_clear_object (&pipeline);
 }
 
 gboolean
-gpop_pipeline_set_parser_desc (GPOPPipeline * pipeline, const gchar * parser_desc)
+gstpop_pipeline_set_parser_desc (GSTPOPPipeline * pipeline, const gchar * parser_desc)
 {
-  _gpop_pipeline_clear_desc (pipeline);
+  _gstpop_pipeline_clear_desc (pipeline);
 
   pipeline->parser_desc = g_strdup (parser_desc);
-  return gpop_parser_play (pipeline->parser, pipeline->parser_desc);
+  return gstpop_parser_play (pipeline->parser, pipeline->parser_desc);
 }
 
 gboolean
-gpop_pipeline_set_state (GPOPPipeline * pipeline, GPOPParserState state)
+gstpop_pipeline_set_state (GSTPOPPipeline * pipeline, GSTPOPParserState state)
 {
   g_assert (pipeline);
 
-  return gpop_parser_change_state (pipeline->parser, state);
+  return gstpop_parser_change_state (pipeline->parser, state);
 }

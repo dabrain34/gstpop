@@ -23,7 +23,8 @@ struct Request {
 
 #[derive(Debug, Deserialize)]
 struct Response {
-    id: String,
+    #[serde(default)]
+    id: Value,
     #[serde(default)]
     result: Option<Value>,
     #[serde(default)]

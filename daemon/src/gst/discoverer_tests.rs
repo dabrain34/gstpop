@@ -76,6 +76,11 @@ fn test_normalize_uri_relative_path() {
     assert!(uri.starts_with("file://"));
     assert!(uri.contains("video.mp4"));
     // Should contain an absolute path (resolved from cwd)
-    let path_part = &uri["file://".len()..];
+    // On Unix: file:///abs/path, on Windows: file:///C:/abs/path
+    let path_part = if cfg!(windows) {
+        uri.strip_prefix("file:///").unwrap()
+    } else {
+        uri.strip_prefix("file://").unwrap()
+    };
     assert!(std::path::Path::new(path_part).is_absolute());
 }

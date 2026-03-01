@@ -7,7 +7,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::pipeline::*;
-use crate::error::GpopError;
+use crate::error::GstpopError;
 
 fn init_gstreamer() {
     let _ = gstreamer::init();
@@ -22,7 +22,7 @@ fn test_pipeline_new_empty_description_fails() {
     init_gstreamer();
     let result = Pipeline::new("test".to_string(), "");
     assert!(result.is_err());
-    if let Err(GpopError::InvalidPipeline(msg)) = result {
+    if let Err(GstpopError::InvalidPipeline(msg)) = result {
         assert!(msg.contains("empty"));
     } else {
         panic!("Expected InvalidPipeline error");
@@ -34,7 +34,7 @@ fn test_pipeline_new_whitespace_only_fails() {
     init_gstreamer();
     let result = Pipeline::new("test".to_string(), "   \t\n  ");
     assert!(result.is_err());
-    if let Err(GpopError::InvalidPipeline(msg)) = result {
+    if let Err(GstpopError::InvalidPipeline(msg)) = result {
         assert!(msg.contains("empty"));
     } else {
         panic!("Expected InvalidPipeline error");
@@ -47,7 +47,7 @@ fn test_pipeline_new_description_too_long_fails() {
     let long_description = "a".repeat(MAX_PIPELINE_DESCRIPTION_LENGTH + 1);
     let result = Pipeline::new("test".to_string(), &long_description);
     assert!(result.is_err());
-    if let Err(GpopError::InvalidPipeline(msg)) = result {
+    if let Err(GstpopError::InvalidPipeline(msg)) = result {
         assert!(msg.contains("too long"));
     } else {
         panic!("Expected InvalidPipeline error");

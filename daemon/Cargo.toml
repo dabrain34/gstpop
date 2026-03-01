@@ -1,11 +1,11 @@
 [package]
-name = "gpop-daemon"
+name = "gstpop"
 version = "0.2.0"
 edition = "2021"
 authors = ["Stéphane Cerveau"]
 license = "GPL-3.0-or-later"
 description = "GStreamer Prince of Parser - Pipeline management daemon with DBus and WebSocket interfaces"
-repository = "https://github.com/dabrain34/gpop"
+repository = "https://github.com/dabrain34/gstpop"
 
 [dependencies]
 # GStreamer bindings
@@ -37,11 +37,11 @@ subtle = "2.6"
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 
 [lib]
-name = "gpop"
+name = "gstpop"
 path = "src/lib.rs"
 
 [[bin]]
-name = "gpop-daemon"
+name = "gstpop"
 path = "src/main.rs"
 
 [[example]]

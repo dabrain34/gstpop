@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 
-use crate::error::{GpopError, Result};
+use crate::error::{GstpopError, Result};
 use crate::gst::event::{EventSender, PipelineEvent, PipelineState};
 
 /// Maximum length for pipeline descriptions to prevent memory exhaustion
@@ -71,14 +71,14 @@ impl Pipeline {
         // Validate description is not empty or whitespace-only
         let trimmed = description.trim();
         if trimmed.is_empty() {
-            return Err(GpopError::InvalidPipeline(
+            return Err(GstpopError::InvalidPipeline(
                 "Pipeline description cannot be empty".to_string(),
             ));
         }
 
         // Validate description length
         if description.len() > MAX_PIPELINE_DESCRIPTION_LENGTH {
-            return Err(GpopError::InvalidPipeline(format!(
+            return Err(GstpopError::InvalidPipeline(format!(
                 "Pipeline description too long: {} bytes (max: {} bytes)",
                 description.len(),
                 MAX_PIPELINE_DESCRIPTION_LENGTH
@@ -92,13 +92,13 @@ impl Pipeline {
             .map_err(|e| {
                 // Check if this is a media-related error (missing codec, unsupported format, etc.)
                 if let Some(msg) = is_media_not_supported_error(&e) {
-                    GpopError::MediaNotSupported(msg)
+                    GstpopError::MediaNotSupported(msg)
                 } else {
-                    GpopError::InvalidPipeline(e.to_string())
+                    GstpopError::InvalidPipeline(e.to_string())
                 }
             })?
             .downcast::<gst::Pipeline>()
-            .map_err(|_| GpopError::InvalidPipeline("Not a pipeline".to_string()))?;
+            .map_err(|_| GstpopError::InvalidPipeline("Not a pipeline".to_string()))?;
 
         info!("Created pipeline '{}': {}", id, description);
 
@@ -111,10 +111,10 @@ impl Pipeline {
         })
     }
 
-    /// Get a reference to the underlying GStreamer pipeline as a GObject.
-    /// Used for bus message source comparison without requiring a mutex lock.
-    pub fn pipeline_object(&self) -> gst::Object {
-        self.pipeline.clone().upcast()
+    /// Get a clone of the underlying GStreamer pipeline.
+    /// Used for bus message source comparison and for `spawn_blocking` state changes.
+    pub fn pipeline_object(&self) -> gst::Pipeline {
+        self.pipeline.clone()
     }
 
     /// Start the bus watcher task for this pipeline.
@@ -125,7 +125,7 @@ impl Pipeline {
         id: String,
         event_tx: EventSender,
         shutdown_flag: Arc<AtomicBool>,
-        pipeline_obj: gst::Object,
+        pipeline_obj: gst::Pipeline,
     ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             loop {
@@ -216,7 +216,7 @@ impl Pipeline {
                         }
                         gst::MessageView::StateChanged(state_changed) => {
                             if let Some(src) = msg.src() {
-                                if *src == pipeline_obj {
+                                if *src == *pipeline_obj.upcast_ref::<gst::Object>() {
                                     let old = PipelineState::from(state_changed.old());
                                     let new = PipelineState::from(state_changed.current());
                                     debug!("Pipeline '{}' state changed: {} -> {}", id, old, new);
@@ -279,35 +279,51 @@ impl Pipeline {
     }
 
     pub fn set_state(&self, state: PipelineState) -> Result<()> {
+        if state == PipelineState::VoidPending {
+            return Err(GstpopError::StateChangeFailed(
+                "VoidPending is not a valid target state".to_string(),
+            ));
+        }
         let gst_state: gst::State = state.into();
-        self.pipeline
+        Self::set_state_blocking(&self.pipeline, &self.id, gst_state, state)
+    }
+
+    /// Blocking state change — safe to call from `spawn_blocking`.
+    /// This waits up to STATE_CHANGE_TIMEOUT_SECS for the state change to complete.
+    pub fn set_state_blocking(
+        pipeline: &gst::Pipeline,
+        id: &str,
+        gst_state: gst::State,
+        state: PipelineState,
+    ) -> Result<()> {
+        pipeline
             .set_state(gst_state)
-            .map_err(|e| GpopError::StateChangeFailed(e.to_string()))?;
+            .map_err(|e| GstpopError::StateChangeFailed(e.to_string()))?;
 
         // Wait for state change with timeout
         let timeout = gst::ClockTime::from_seconds(STATE_CHANGE_TIMEOUT_SECS);
-        let (result, current, _pending) = self.pipeline.state(timeout);
+        let (result, current, _pending) = pipeline.state(timeout);
 
         match result {
             Ok(success) => {
                 match success {
                     gst::StateChangeSuccess::Success | gst::StateChangeSuccess::NoPreroll => {
-                        info!("Pipeline '{}' state set to {}", self.id, state);
+                        info!("Pipeline '{}' state set to {}", id, state);
                         Ok(())
                     }
                     gst::StateChangeSuccess::Async => {
                         // State change is still in progress but was accepted
                         info!(
                             "Pipeline '{}' state change to {} in progress (current: {:?})",
-                            self.id, state, current
+                            id, state, current
                         );
                         Ok(())
                     }
                 }
             }
-            Err(_) => Err(GpopError::StateChangeFailed(format!(
+            Err(_) => Err(GstpopError::StateChangeFailed(format!(
                 "Failed to change state to {} for pipeline '{}'",
-                state, self.id
+                state, id
             ))),
         }
     }

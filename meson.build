@@ -1,4 +1,4 @@
-project('gpop', 'c', version : '0.2.0', license : 'GPL')
+project('gstpop', 'c', version : '0.2.0', license : 'GPL')
 
 pkg = import('pkgconfig')
 
@@ -36,17 +36,17 @@ endif
 # Rust targets (daemon + client)
 cargo = find_program('cargo', required: true)
 
-custom_target('gpop-daemon',
-  output: 'gpop-daemon',
-  command: [cargo, 'build', '--release', '-p', 'gpop-daemon', '--target-dir', '@OUTDIR@'],
+custom_target('gstpop',
+  output: 'gstpop',
+  command: [cargo, 'build', '--release', '-p', 'gstpop', '--target-dir', '@OUTDIR@'],
   console: true,
   build_by_default: true,
 )
 
 if get_option('client')
-  custom_target('gpop-client',
-    output: 'gpop-client',
-    command: [cargo, 'build', '--release', '-p', 'gpop-client', '--target-dir', '@OUTDIR@'],
+  custom_target('gstpop-client',
+    output: 'gstpop-client',
+    command: [cargo, 'build', '--release', '-p', 'gstpop-client', '--target-dir', '@OUTDIR@'],
     console: true,
     build_by_default: true,
   )

@@ -8,7 +8,7 @@
 
 //! Integration tests for WebSocket server bounded channels and connection limits
 
-use gpop::websocket::{CLIENT_MESSAGE_BUFFER, DEFAULT_WEBSOCKET_PORT, MAX_CONCURRENT_CLIENTS};
+use gstpop::websocket::{CLIENT_MESSAGE_BUFFER, DEFAULT_WEBSOCKET_PORT, MAX_CONCURRENT_CLIENTS};
 
 #[test]
 fn test_client_message_buffer_is_bounded() {
@@ -43,7 +43,7 @@ fn test_constants_are_public() {
 
 #[cfg(test)]
 mod protocol_validation_tests {
-    use gpop::websocket::protocol::{error_codes, Request, Response, JSONRPC_VERSION};
+    use gstpop::websocket::protocol::{error_codes, Request, Response, JSONRPC_VERSION};
 
     #[test]
     fn test_request_without_id_is_notification() {

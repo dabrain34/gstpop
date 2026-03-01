@@ -11,7 +11,7 @@ use gstreamer_pbutils as gst_pbutils;
 use gstreamer_pbutils::prelude::*;
 use serde::Serialize;
 
-use crate::error::{GpopError, Result};
+use crate::error::{GstpopError, Result};
 
 /// Default discovery timeout in seconds.
 pub const DEFAULT_TIMEOUT_SECS: u32 = 10;
@@ -123,11 +123,20 @@ pub(crate) fn normalize_uri(uri: &str) -> Result<String> {
         path.to_path_buf()
     } else {
         std::env::current_dir()
-            .map_err(|e| GpopError::DiscoveryFailed(format!("Cannot resolve path: {}", e)))?
+            .map_err(|e| GstpopError::DiscoveryFailed(format!("Cannot resolve path: {}", e)))?
             .join(path)
     };
 
-    Ok(format!("file://{}", abs.display()))
+    // Use forward slashes and proper file URI format for cross-platform compatibility.
+    // On Windows, abs.display() produces backslashes which are invalid in file URIs.
+    // On Unix, paths start with / so file:// + /path gives file:///path.
+    // On Windows, paths start with C:/ so we need file:///C:/path.
+    let path_str = abs.to_string_lossy().replace('\\', "/");
+    if path_str.starts_with('/') {
+        Ok(format!("file://{}", path_str))
+    } else {
+        Ok(format!("file:///{}", path_str))
+    }
 }
 
 /// Discover media information for a given URI or file path.
@@ -146,10 +155,10 @@ pub fn discover_uri(uri: &str, timeout_secs: Option<u32>) -> Result<DiscoverResu
     let timeout_ns = gst::ClockTime::from_seconds(timeout as u64);
 
     let discoverer = gst_pbutils::Discoverer::new(timeout_ns)
-        .map_err(|e| GpopError::GStreamer(format!("Failed to create discoverer: {}", e)))?;
+        .map_err(|e| GstpopError::GStreamer(format!("Failed to create discoverer: {}", e)))?;
 
     let info = discoverer.discover_uri(&uri).map_err(|e| {
-        GpopError::DiscoveryFailed(format!("Discovery failed for '{}': {}", uri, e))
+        GstpopError::DiscoveryFailed(format!("Discovery failed for '{}': {}", uri, e))
     })?;
 
     Ok(build_discover_result(&info))
@@ -270,7 +279,9 @@ fn collect_tags(info: &gst_pbutils::DiscovererInfo) -> Option<TagsInfo> {
     for stream in info.stream_list() {
         if let Some(tags) = stream.tags() {
             // Safety: `merged` is locally owned with no other references
-            let merged_mut = merged.get_mut().unwrap();
+            let merged_mut = merged
+                .get_mut()
+                .expect("TagList should have unique ownership");
             merged_mut.merge(&tags, gst::TagMergeMode::Keep);
         }
     }

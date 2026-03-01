@@ -16,7 +16,7 @@ pub struct ManagerInterface {
     pub manager: Arc<PipelineManager>,
 }
 
-#[interface(name = "org.gpop.Manager")]
+#[interface(name = "org.gstpop.Manager")]
 impl ManagerInterface {
     async fn add_pipeline(&self, description: &str) -> zbus::fdo::Result<String> {
         self.manager
@@ -104,6 +104,6 @@ impl ManagerInterface {
     }
 
     pub fn object_path() -> ObjectPath<'static> {
-        ObjectPath::from_static_str("/org/gpop/Manager").unwrap()
+        ObjectPath::from_static_str("/org/gstpop/Manager").unwrap()
     }
 }

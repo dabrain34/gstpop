@@ -13,7 +13,7 @@ use tokio::sync::{Mutex, RwLock};
 use tracing::{info, warn};
 
 use super::{MAX_PIPELINES, SHUTDOWN_GRACE_PERIOD_MS};
-use crate::error::{GpopError, Result};
+use crate::error::{GstpopError, Result};
 use crate::gst::event::{EventSender, PipelineEvent, PipelineState};
 use crate::gst::pipeline::Pipeline;
 
@@ -40,17 +40,6 @@ impl PipelineManager {
     }
 
     pub async fn add_pipeline(&self, description: &str) -> Result<String> {
-        // Check pipeline limit before creating
-        {
-            let pipelines = self.pipelines.read().await;
-            if pipelines.len() >= MAX_PIPELINES {
-                return Err(GpopError::InvalidPipeline(format!(
-                    "Maximum number of pipelines ({}) reached",
-                    MAX_PIPELINES
-                )));
-            }
-        }
-
         // Use Relaxed ordering - we only need uniqueness, not synchronization
         // Using u64 makes overflow practically impossible (would take millions of years
         // at 1 billion pipelines per second)
@@ -58,15 +47,27 @@ impl PipelineManager {
 
         let id = id_num.to_string();
 
+        // Create pipeline outside the lock (validates description early)
         let pipeline = Pipeline::new(id.clone(), description)?;
         let pipeline = Arc::new(Mutex::new(pipeline));
+
+        // Acquire write lock and check limit atomically with insert
+        let mut pipelines = self.pipelines.write().await;
+        if pipelines.len() >= MAX_PIPELINES {
+            // Drop pipeline (and its resources) before returning error
+            drop(pipelines);
+            return Err(GstpopError::InvalidPipeline(format!(
+                "Maximum number of pipelines ({}) reached",
+                MAX_PIPELINES
+            )));
+        }
 
         // Extract bus watch parameters synchronously to avoid race conditions
         let (bus, shutdown_flag, pipeline_obj) = {
             let p = pipeline.lock().await;
             let bus = p
                 .bus()
-                .ok_or_else(|| GpopError::InvalidPipeline("Pipeline has no bus".to_string()))?;
+                .ok_or_else(|| GstpopError::InvalidPipeline("Pipeline has no bus".to_string()))?;
             (bus, p.shutdown_flag(), p.pipeline_object())
         };
 
@@ -85,17 +86,8 @@ impl PipelineManager {
             p.set_bus_task(bus_task);
         }
 
-        {
-            let mut pipelines = self.pipelines.write().await;
-            // Re-check limit under write lock to prevent TOCTOU race
-            if pipelines.len() >= MAX_PIPELINES {
-                return Err(GpopError::InvalidPipeline(format!(
-                    "Maximum number of pipelines ({}) reached",
-                    MAX_PIPELINES
-                )));
-            }
-            pipelines.insert(id.clone(), pipeline);
-        }
+        pipelines.insert(id.clone(), pipeline);
+        drop(pipelines);
 
         info!("Added pipeline '{}': {}", id, description);
 
@@ -140,7 +132,7 @@ impl PipelineManager {
 
             Ok(())
         } else {
-            Err(GpopError::PipelineNotFound(id.to_string()))
+            Err(GstpopError::PipelineNotFound(id.to_string()))
         }
     }
 
@@ -149,7 +141,7 @@ impl PipelineManager {
         pipelines
             .get(id)
             .cloned()
-            .ok_or_else(|| GpopError::PipelineNotFound(id.to_string()))
+            .ok_or_else(|| GstpopError::PipelineNotFound(id.to_string()))
     }
 
     pub async fn get_pipeline_info(&self, id: &str) -> Result<PipelineInfo> {
@@ -200,8 +192,20 @@ impl PipelineManager {
 
     pub async fn set_state(&self, id: &str, state: PipelineState) -> Result<()> {
         let pipeline = self.get_pipeline(id).await?;
-        let p = pipeline.lock().await;
-        p.set_state(state)
+        // Extract the GStreamer pipeline object and release the mutex before blocking
+        let gst_pipeline = {
+            let p = pipeline.lock().await;
+            p.pipeline_object()
+        };
+        let id_owned = id.to_string();
+        let gst_state: gstreamer::State = state.into();
+        // Use spawn_blocking to avoid blocking the tokio runtime during state change,
+        // which can wait up to STATE_CHANGE_TIMEOUT_SECS (30s)
+        tokio::task::spawn_blocking(move || {
+            Pipeline::set_state_blocking(&gst_pipeline, &id_owned, gst_state, state)
+        })
+        .await
+        .map_err(|e| GstpopError::StateChangeFailed(format!("Task failed: {}", e)))?
     }
 
     pub async fn play(&self, id: &str) -> Result<()> {
@@ -264,7 +268,7 @@ impl PipelineManager {
             let p = new_pipeline.lock().await;
             let bus = p
                 .bus()
-                .ok_or_else(|| GpopError::InvalidPipeline("Pipeline has no bus".to_string()))?;
+                .ok_or_else(|| GstpopError::InvalidPipeline("Pipeline has no bus".to_string()))?;
             (bus, p.shutdown_flag(), p.pipeline_object())
         };
 
@@ -276,7 +280,7 @@ impl PipelineManager {
         if !pipelines.contains_key(id) {
             // Drop the new pipeline (will clean up resources)
             drop(new_pipeline);
-            return Err(GpopError::PipelineNotFound(id.to_string()));
+            return Err(GstpopError::PipelineNotFound(id.to_string()));
         }
 
         // Start bus watcher for the new pipeline (after confirming old pipeline exists)
@@ -304,7 +308,9 @@ impl PipelineManager {
         // Stop old pipeline outside the lock
         if let Some(old_pipeline) = old_pipeline {
             let p = old_pipeline.lock().await;
-            let _ = p.stop();
+            if let Err(e) = p.stop() {
+                warn!("Failed to stop old pipeline '{}' during update: {}", id, e);
+            }
         }
 
         info!("Updated pipeline '{}': {}", id, description);
@@ -342,8 +348,11 @@ impl PipelineManager {
         // Now stop all pipelines
         for (id, pipeline) in pipelines_to_stop {
             let p = pipeline.lock().await;
-            let _ = p.stop();
-            info!("Stopped pipeline '{}' during shutdown", id);
+            if let Err(e) = p.stop() {
+                warn!("Failed to stop pipeline '{}' during shutdown: {}", id, e);
+            } else {
+                info!("Stopped pipeline '{}' during shutdown", id);
+            }
         }
     }
 }
