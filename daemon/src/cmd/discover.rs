@@ -24,13 +24,16 @@ pub struct DiscoverArgs {
 
 pub fn run(args: DiscoverArgs) -> i32 {
     match discoverer::discover_uri(&args.uri, Some(args.timeout)) {
-        Ok(info) => {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&info).expect("JSON serialization failed")
-            );
-            0
-        }
+        Ok(info) => match serde_json::to_string_pretty(&info) {
+            Ok(json) => {
+                println!("{}", json);
+                0
+            }
+            Err(e) => {
+                error!("Failed to serialize discovery result: {}", e);
+                1
+            }
+        },
         Err(e) => {
             error!("Discovery failed: {}", e);
             1

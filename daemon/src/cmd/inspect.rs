@@ -33,13 +33,16 @@ pub fn run(args: InspectArgs) -> i32 {
 
     if let Some(name) = &args.element {
         match registry::get_element(name, detail) {
-            Some(info) => {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&info).expect("JSON serialization failed")
-                );
-                0
-            }
+            Some(info) => match serde_json::to_string_pretty(&info) {
+                Ok(json) => {
+                    println!("{}", json);
+                    0
+                }
+                Err(e) => {
+                    error!("Failed to serialize element info: {}", e);
+                    1
+                }
+            },
             None => {
                 error!("Element '{}' not found", name);
                 1
@@ -47,10 +50,15 @@ pub fn run(args: InspectArgs) -> i32 {
         }
     } else {
         let elements = registry::get_elements(detail);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&elements).expect("JSON serialization failed")
-        );
-        0
+        match serde_json::to_string_pretty(&elements) {
+            Ok(json) => {
+                println!("{}", json);
+                0
+            }
+            Err(e) => {
+                error!("Failed to serialize elements: {}", e);
+                1
+            }
+        }
     }
 }

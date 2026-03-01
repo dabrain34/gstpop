@@ -60,6 +60,8 @@ generate_uuid (void)
 gchar *
 gstpop_json_to_pretty_string (JsonNode *node)
 {
+  g_return_val_if_fail (node != NULL, g_strdup ("null"));
+
   JsonGenerator *gen = json_generator_new ();
   json_generator_set_pretty (gen, TRUE);
   json_generator_set_indent (gen, 2);
@@ -76,6 +78,10 @@ handle_event (GSTPOPClient *client, JsonObject *root)
     return;
 
   const gchar *event_type = json_object_get_string_member (root, "event");
+  if (!event_type) {
+    g_warning ("Event message missing 'event' string field");
+    return;
+  }
   JsonNode *data_node = json_object_get_member (root, "data");
 
   client->event_callback (client, event_type, data_node, client->event_user_data);
@@ -85,6 +91,10 @@ static void
 handle_response (GSTPOPClient *client, JsonObject *root)
 {
   const gchar *id = json_object_get_string_member (root, "id");
+  if (!id) {
+    g_warning ("Response message missing string 'id' field");
+    return;
+  }
 
   if (json_object_has_member (root, "error")) {
     if (client->error_callback) {
@@ -173,10 +183,13 @@ on_websocket_error (SoupWebsocketConnection *ws,
                     GError *error,
                     gpointer user_data)
 {
+  GSTPOPClient *client = GSTPOP_CLIENT (user_data);
   (void) ws;
-  (void) user_data;
 
   g_warning ("WebSocket error: %s", error->message);
+  if (client->error_callback) {
+    client->error_callback (client, NULL, -1, error->message, client->error_user_data);
+  }
 }
 
 static void
