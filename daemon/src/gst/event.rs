@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "lowercase")]
 pub enum PipelineState {
     /// Pipeline is in void/pending state (transitioning)
+    #[serde(rename = "void_pending")]
     VoidPending,
     Null,
     Ready,

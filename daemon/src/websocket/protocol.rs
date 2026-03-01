@@ -161,7 +161,14 @@ impl Response {
             GstpopError::MediaNotSupported(msg) => (error_codes::MEDIA_NOT_SUPPORTED, msg.clone()),
             GstpopError::DiscoveryFailed(msg) => (error_codes::DISCOVERY_FAILED, msg.clone()),
             GstpopError::GStreamer(msg) => (error_codes::GSTREAMER_ERROR, msg.clone()),
-            _ => (error_codes::INTERNAL_ERROR, "Internal error".to_string()),
+            GstpopError::WebSocket(msg) => (
+                error_codes::INTERNAL_ERROR,
+                format!("WebSocket error: {}", msg),
+            ),
+            GstpopError::Json(e) => (error_codes::INTERNAL_ERROR, format!("JSON error: {}", e)),
+            GstpopError::Io(e) => (error_codes::INTERNAL_ERROR, format!("IO error: {}", e)),
+            #[cfg(target_os = "linux")]
+            GstpopError::DBus(e) => (error_codes::INTERNAL_ERROR, format!("DBus error: {}", e)),
         };
 
         Self::error(id, code, message)
