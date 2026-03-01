@@ -1,0 +1,158 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v0.2.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+          - os: windows-latest
+            platform: windows-x86_64
+          - os: macos-latest
+            platform: macos-aarch64
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- GStreamer installation (platform-specific) ---
+      - name: Install GStreamer (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad \
+            gstreamer1.0-plugins-ugly \
+            gstreamer1.0-tools
+
+      - name: Install GStreamer (Windows)
+        if: runner.os == 'Windows'
+        run: choco install gstreamer gstreamer-devel --yes
+
+      - name: Set GStreamer environment (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $gstRoot = "C:\Program Files\gstreamer\1.0\msvc_x86_64"
+          Add-Content $env:GITHUB_PATH "$gstRoot\bin"
+          Add-Content $env:GITHUB_ENV "GSTREAMER_1_0_ROOT_MSVC_X86_64=$gstRoot"
+          Add-Content $env:GITHUB_ENV "LIB=$gstRoot\lib;$env:LIB"
+
+      - name: Install pkgconf via vcpkg (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg install pkgconf:x64-windows
+          echo "C:\vcpkg\installed\x64-windows\tools\pkgconf" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Set PKG_CONFIG_PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Add-Content $env:GITHUB_ENV "PKG_CONFIG_PATH=C:\Program Files\gstreamer\1.0\msvc_x86_64\lib\pkgconfig"
+
+      - name: Install GStreamer (macOS)
+        if: runner.os == 'macOS'
+        run: brew install gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly
+
+      # --- Rust toolchain and caching ---
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-
+
+      # --- Build ---
+      - name: Build release binaries
+        run: cargo build --release --workspace
+
+      # --- Package ---
+      - name: Package artifacts (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir staging
+          cp target/release/gpop-daemon staging/
+          cp target/release/gpop-client staging/
+          cd staging
+          zip ../gpop-${{ env.TAG_NAME }}-${{ matrix.platform }}.zip gpop-daemon gpop-client
+
+      - name: Package artifacts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path staging
+          Copy-Item target/release/gpop-daemon.exe staging/
+          Copy-Item target/release/gpop-client.exe staging/
+          Compress-Archive -Path staging/* -DestinationPath gpop-${{ env.TAG_NAME }}-${{ matrix.platform }}.zip
+
+      # --- Upload for release job ---
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpop-${{ env.TAG_NAME }}-${{ matrix.platform }}
+          path: gpop-${{ env.TAG_NAME }}-${{ matrix.platform }}.zip
+          retention-days: 1
+
+  release:
+    name: Create Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create source archive
+        run: |
+          git archive --format=tar.gz --prefix=gpop-${{ env.TAG_NAME }}/ \
+            -o gpop-${{ env.TAG_NAME }}-source.tar.gz HEAD
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List release artifacts
+        run: ls -la artifacts/ gpop-*-source.tar.gz
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: gpop ${{ env.TAG_NAME }}
+          generate_release_notes: true
+          make_latest: "true"
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/gpop-*.zip
+            gpop-*-source.tar.gz
