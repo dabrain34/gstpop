@@ -127,7 +127,16 @@ pub(crate) fn normalize_uri(uri: &str) -> Result<String> {
             .join(path)
     };
 
-    Ok(format!("file://{}", abs.display()))
+    // Use forward slashes and proper file URI format for cross-platform compatibility.
+    // On Windows, abs.display() produces backslashes which are invalid in file URIs.
+    // On Unix, paths start with / so file:// + /path gives file:///path.
+    // On Windows, paths start with C:/ so we need file:///C:/path.
+    let path_str = abs.to_string_lossy().replace('\\', "/");
+    if path_str.starts_with('/') {
+        Ok(format!("file://{}", path_str))
+    } else {
+        Ok(format!("file:///{}", path_str))
+    }
 }
 
 /// Discover media information for a given URI or file path.
@@ -270,7 +279,9 @@ fn collect_tags(info: &gst_pbutils::DiscovererInfo) -> Option<TagsInfo> {
     for stream in info.stream_list() {
         if let Some(tags) = stream.tags() {
             // Safety: `merged` is locally owned with no other references
-            let merged_mut = merged.get_mut().unwrap();
+            let merged_mut = merged
+                .get_mut()
+                .expect("TagList should have unique ownership");
             merged_mut.merge(&tags, gst::TagMergeMode::Keep);
         }
     }
