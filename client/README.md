@@ -127,7 +127,7 @@ Event types: `state_changed`, `error`, `eos`, `pipeline_added`, `pipeline_update
 
 ```
 $ ./gstpop-client
-Connecting to ws://127.0.0.1:8444...
+Connecting to ws://127.0.0.1:9000...
 Connected!
 
 > list

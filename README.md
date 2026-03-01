@@ -75,12 +75,12 @@ This builds everything:
 | Option | Default | Description |
 |--------|---------|-------------|
 | `client` | `true` | Build the Rust client |
-| `c_client` | `true` | Build the C client |
+| `cclient` | `true` | Build the C client |
 
 Example: build only the daemon (no clients):
 
 ```
-meson setup builddir -Dclient=false -Dc_client=false
+meson setup builddir -Dclient=false -Dcclient=false
 ninja -C builddir
 ```
 
@@ -123,9 +123,11 @@ Example with custom settings:
 Example with authentication:
 
 ```
-./builddir/release/gstpop daemon --api-key mysecretkey
-# or via environment variable
+# Recommended: use environment variable (avoids exposing key in process listing)
 GSTPOP_API_KEY=mysecretkey ./builddir/release/gstpop daemon
+
+# Alternative: via command-line argument (visible in `ps` output)
+./builddir/release/gstpop daemon --api-key mysecretkey
 ```
 
 #### Running the Rust Client
