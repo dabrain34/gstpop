@@ -199,14 +199,23 @@ async fn handle_connection(
                         let provided = value.to_str().unwrap_or("").as_bytes();
                         let expected_bytes = expected.as_bytes();
                         // Use constant-time comparison to prevent timing attacks.
-                        // Always perform a ct_eq to avoid leaking key length via timing.
-                        let is_valid = if provided.len() == expected_bytes.len() {
-                            bool::from(provided.ct_eq(expected_bytes))
-                        } else {
-                            // Perform a dummy comparison against expected to equalize timing
-                            let _ = bool::from(expected_bytes.ct_eq(expected_bytes));
-                            false
+                        // Hash both values to normalize length before comparison,
+                        // preventing key length leaks via timing.
+                        use std::hash::{Hash, Hasher};
+                        let hash_bytes = |data: &[u8]| -> u64 {
+                            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                            data.hash(&mut hasher);
+                            hasher.finish()
                         };
+                        // First check: constant-time comparison of hashes (fixed-size, no length leak)
+                        let provided_hash = hash_bytes(provided).to_le_bytes();
+                        let expected_hash = hash_bytes(expected_bytes).to_le_bytes();
+                        let hashes_match = bool::from(provided_hash.ct_eq(&expected_hash));
+                        // Second check: if lengths happen to match, also do a full ct_eq
+                        // to avoid hash collision false positives
+                        let is_valid = hashes_match
+                            && provided.len() == expected_bytes.len()
+                            && bool::from(provided.ct_eq(expected_bytes));
                         if is_valid {
                             return Ok(res);
                         } else {
