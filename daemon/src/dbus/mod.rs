@@ -21,7 +21,7 @@ use crate::error::Result;
 use crate::gst::{EventReceiver, PipelineEvent, PipelineManager};
 
 use self::manager::ManagerInterface;
-use self::pipeline::PipelineInterface;
+use self::pipeline::{PipelineInterface, PipelineInterfaceSignals};
 
 pub const DBUS_SERVICE_NAME: &str = "org.gstpop";
 
@@ -113,6 +113,59 @@ impl DbusServer {
     pub fn connection(&self) -> &Connection {
         &self.connection
     }
+
+    /// Look up the D-Bus object path index for a pipeline.
+    async fn pipeline_index(&self, pipeline_id: &str) -> Option<u32> {
+        let indices = self.pipeline_indices.read().await;
+        indices.get(pipeline_id).copied()
+    }
+
+    /// Emit a StateChanged signal on the pipeline's D-Bus object.
+    pub async fn emit_state_changed(
+        &self,
+        pipeline_id: &str,
+        old_state: &str,
+        new_state: &str,
+    ) -> Result<()> {
+        if let Some(index) = self.pipeline_index(pipeline_id).await {
+            let path = PipelineInterface::object_path(index);
+            let iface_ref = self
+                .connection
+                .object_server()
+                .interface::<_, PipelineInterface>(&path)
+                .await?;
+            iface_ref.emit_state_changed(old_state, new_state).await?;
+        }
+        Ok(())
+    }
+
+    /// Emit an error signal on the pipeline's D-Bus object.
+    pub async fn emit_error(&self, pipeline_id: &str, message: &str) -> Result<()> {
+        if let Some(index) = self.pipeline_index(pipeline_id).await {
+            let path = PipelineInterface::object_path(index);
+            let iface_ref = self
+                .connection
+                .object_server()
+                .interface::<_, PipelineInterface>(&path)
+                .await?;
+            iface_ref.error(message).await?;
+        }
+        Ok(())
+    }
+
+    /// Emit an eos signal on the pipeline's D-Bus object.
+    pub async fn emit_eos(&self, pipeline_id: &str) -> Result<()> {
+        if let Some(index) = self.pipeline_index(pipeline_id).await {
+            let path = PipelineInterface::object_path(index);
+            let iface_ref = self
+                .connection
+                .object_server()
+                .interface::<_, PipelineInterface>(&path)
+                .await?;
+            iface_ref.eos().await?;
+        }
+        Ok(())
+    }
 }
 
 pub async fn run_dbus_event_forwarder(dbus_server: Arc<DbusServer>, mut event_rx: EventReceiver) {
@@ -132,10 +185,39 @@ pub async fn run_dbus_event_forwarder(dbus_server: Arc<DbusServer>, mut event_rx
                         error!("Failed to unregister pipeline from DBus: {}", e);
                     }
                 }
-                _ => {
-                    // State changes, errors, EOS are handled via DBus signals
-                    // when properties are queried
+                PipelineEvent::StateChanged {
+                    pipeline_id,
+                    old_state,
+                    new_state,
+                } => {
+                    if let Err(e) = dbus_server
+                        .emit_state_changed(
+                            &pipeline_id,
+                            &old_state.to_string(),
+                            &new_state.to_string(),
+                        )
+                        .await
+                    {
+                        warn!(
+                            "Failed to emit StateChanged signal for '{}': {}",
+                            pipeline_id, e
+                        );
+                    }
                 }
+                PipelineEvent::Error {
+                    pipeline_id,
+                    message,
+                } => {
+                    if let Err(e) = dbus_server.emit_error(&pipeline_id, &message).await {
+                        warn!("Failed to emit error signal for '{}': {}", pipeline_id, e);
+                    }
+                }
+                PipelineEvent::Eos { pipeline_id } => {
+                    if let Err(e) = dbus_server.emit_eos(&pipeline_id).await {
+                        warn!("Failed to emit eos signal for '{}': {}", pipeline_id, e);
+                    }
+                }
+                _ => {}
             },
             Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
                 warn!("DBus event forwarder lagged by {} messages", n);

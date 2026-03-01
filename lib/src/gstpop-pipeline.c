@@ -31,7 +31,7 @@ G_DEFINE_TYPE (GSTPOPPipeline, gstpop_pipeline, GSTPOP_TYPE_DBUS_INTERFACE);
 const char gstpop_pipeline_xml_introspection[] =
     "<?xml version='1.0' encoding='UTF-8' ?>"
     "<node>"
-    "    <interface name='org.gstpop.GSTPOPInterface'>"
+    "    <interface name='org.gstpop.Pipeline'>"
     "       <property name='parser_desc' type='s' access='read'/>"
     "       <property name='id' type='s' access='read'/>"
     "       <property name='streaming' type='b' access='read'/>"
