@@ -19,7 +19,11 @@ mod cmd;
 #[command(about = "GStreamer Prince of Parser - Pipeline management tool")]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
+
+    /// Pipeline description to launch (default command)
+    #[arg(trailing_var_arg = true, value_name = "PIPELINE")]
+    pipeline: Vec<String>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -27,8 +31,8 @@ enum Commands {
     /// Start the daemon with WebSocket and DBus interfaces
     Daemon(cmd::daemon::DaemonArgs),
 
-    /// Play pipelines and exit when all finish
-    Play(cmd::play::PlayArgs),
+    /// Launch pipelines and exit when all finish
+    Launch(cmd::launch::LaunchArgs),
 
     /// Inspect GStreamer elements
     Inspect(cmd::inspect::InspectArgs),
@@ -55,10 +59,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     let exit_code = match cli.command {
-        Commands::Daemon(args) => cmd::daemon::run(args).await,
-        Commands::Play(args) => cmd::play::run(args).await,
-        Commands::Inspect(args) => cmd::inspect::run(args),
-        Commands::Discover(args) => cmd::discover::run(args),
+        Some(Commands::Daemon(args)) => cmd::daemon::run(args).await,
+        Some(Commands::Launch(args)) => cmd::launch::run(args).await,
+        Some(Commands::Inspect(args)) => cmd::inspect::run(args),
+        Some(Commands::Discover(args)) => cmd::discover::run(args),
+        None => {
+            if cli.pipeline.is_empty() {
+                // No subcommand and no pipeline: print help
+                use clap::CommandFactory;
+                Cli::command().print_help().unwrap();
+                println!();
+                0
+            } else {
+                let pipeline = cli.pipeline.join(" ");
+                let args = cmd::launch::LaunchArgs {
+                    pipelines: vec![],
+                    pipeline: Some(pipeline),
+                };
+                cmd::launch::run(args).await
+            }
+        }
     };
 
     if exit_code != 0 {

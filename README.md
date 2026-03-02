@@ -101,7 +101,7 @@ By default, the server binds to `ws://127.0.0.1:9000`.
 | Subcommand | Description |
 |------------|-------------|
 | `daemon` | Start the WebSocket/DBus server |
-| `play` | Play pipelines and exit when all finish |
+| `launch` | Launch pipelines and exit when all finish (default subcommand) |
 | `inspect` | Inspect GStreamer elements |
 | `discover` | Discover media information for a URI |
 
