@@ -61,6 +61,7 @@ impl ManagerInterface {
             "get_pipeline_count" => self.get_pipeline_count(request.id).await,
             "get_elements" => self.get_elements(request).await,
             "discover_uri" => self.discover_uri(request).await,
+            "play_uri" => self.play_uri(request).await,
             // snapshot is handled separately in server.rs
             _ => Response::method_not_found(request.id, &request.method),
         }
@@ -339,6 +340,39 @@ impl ManagerInterface {
             }
             Err(e) => Response::from_gstpop_error(request.id, &e),
         }
+    }
+
+    async fn play_uri(&self, request: Request) -> Response {
+        let params: PlayUriParams = match serde_json::from_value(request.params) {
+            Ok(p) => p,
+            Err(e) => {
+                return Response::invalid_params(request.id, format!("Invalid params: {}", e))
+            }
+        };
+
+        let description = match crate::gst::discoverer::build_playbin_description(
+            &params.uri,
+            params.video_sink.as_deref(),
+            params.audio_sink.as_deref(),
+            params.use_playbin2.unwrap_or(false),
+        ) {
+            Ok(d) => d,
+            Err(e) => return Response::from_gstpop_error(request.id, &e),
+        };
+
+        let pipeline_id = match self.manager.add_pipeline(&description).await {
+            Ok(id) => id,
+            Err(e) => return Response::from_gstpop_error(request.id, &e),
+        };
+
+        if let Err(e) = self.manager.play(&pipeline_id).await {
+            // Clean up the pipeline we just created so it doesn't consume a slot
+            let _ = self.manager.remove_pipeline(&pipeline_id).await;
+            return Response::from_gstpop_error(request.id, &e);
+        }
+
+        let result = PlayUriResult { pipeline_id };
+        to_json_value(request.id, &result)
     }
 
     async fn update_pipeline(&self, request: Request) -> Response {

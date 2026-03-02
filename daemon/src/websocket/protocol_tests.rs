@@ -253,3 +253,44 @@ fn test_pipeline_created_result() {
     let json = serde_json::to_string(&result).unwrap();
     assert_eq!(json, r#"{"pipeline_id":"pipeline-0"}"#);
 }
+
+#[test]
+fn test_play_uri_params_minimal() {
+    let json = r#"{"uri":"file:///test.mp4"}"#;
+    let params: PlayUriParams = serde_json::from_str(json).unwrap();
+    assert_eq!(params.uri, "file:///test.mp4");
+    assert!(params.video_sink.is_none());
+    assert!(params.audio_sink.is_none());
+    assert!(params.use_playbin2.is_none());
+}
+
+#[test]
+fn test_play_uri_params_all_fields() {
+    let json = r#"{
+        "uri": "http://example.com/video.mp4",
+        "video_sink": "fakesink",
+        "audio_sink": "autoaudiosink",
+        "use_playbin2": true
+    }"#;
+    let params: PlayUriParams = serde_json::from_str(json).unwrap();
+    assert_eq!(params.uri, "http://example.com/video.mp4");
+    assert_eq!(params.video_sink, Some("fakesink".to_string()));
+    assert_eq!(params.audio_sink, Some("autoaudiosink".to_string()));
+    assert_eq!(params.use_playbin2, Some(true));
+}
+
+#[test]
+fn test_play_uri_params_missing_uri_fails() {
+    let json = r#"{"video_sink":"fakesink"}"#;
+    let result: Result<PlayUriParams, _> = serde_json::from_str(json);
+    assert!(result.is_err(), "URI is required");
+}
+
+#[test]
+fn test_play_uri_result_serialization() {
+    let result = PlayUriResult {
+        pipeline_id: "42".to_string(),
+    };
+    let json = serde_json::to_string(&result).unwrap();
+    assert_eq!(json, r#"{"pipeline_id":"42"}"#);
+}

@@ -51,6 +51,7 @@ print_help (void)
     g_print ("  count                     - Get pipeline count\n");
     g_print ("  elements [detail]         - List GStreamer elements (detail: none, summary, full)\n");
     g_print ("  discover <uri> [timeout]  - Discover media info for a URI\n");
+    g_print ("  play_uri <uri> [playbin2] - Play a media URI using playbin3 (or playbin2)\n");
     g_print ("  help                      - Show this help\n");
     g_print ("  quit                      - Exit\n");
     g_print ("\n");
@@ -202,6 +203,10 @@ process_command (AppContext *ctx, const gchar *line)
             timeout = (guint) g_ascii_strtoull (parts[2], NULL, 10);
         }
         request_id = gstpop_client_discover_uri (ctx->client, parts[1], timeout);
+    }
+    else if (g_strcmp0 (cmd, "play_uri") == 0 && argc >= 2) {
+        gboolean use_playbin2 = (argc > 2 && g_strcmp0 (parts[2], "playbin2") == 0);
+        request_id = gstpop_client_play_uri (ctx->client, parts[1], use_playbin2);
     }
     else if (g_strcmp0 (cmd, "help") == 0) {
         print_help ();

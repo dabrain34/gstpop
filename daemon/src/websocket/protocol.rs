@@ -234,3 +234,19 @@ pub struct DiscoverUriResult {
     #[serde(flatten)]
     pub info: crate::gst::discoverer::DiscoverResult,
 }
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PlayUriParams {
+    pub uri: String,
+    #[serde(default)]
+    pub video_sink: Option<String>,
+    #[serde(default)]
+    pub audio_sink: Option<String>,
+    #[serde(default)]
+    pub use_playbin2: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PlayUriResult {
+    pub pipeline_id: String,
+}

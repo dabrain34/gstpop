@@ -58,6 +58,12 @@ ninja -C builddir gstpop-client-c
 | `state <id> <state>` | Set pipeline state | `state 0 playing` |
 | `snapshot <id> [details]` | Get DOT graph | `snapshot 0 all` |
 | `position [id]` | Get position/duration | `position 0` |
+| `version` | Get daemon version | `version` |
+| `sysinfo` | Get daemon and GStreamer info | `sysinfo` |
+| `count` | Get pipeline count | `count` |
+| `elements [detail]` | List GStreamer elements | `elements summary` |
+| `discover <uri> [timeout]` | Discover media info for a URI | `discover file:///video.mp4` |
+| `play_uri <uri> [playbin2]` | Play a media URI using playbin3 (or playbin2) | `play_uri file:///video.mp4` |
 | `help` | Show available commands | `help` |
 | `quit` | Exit the client | `quit` |
 

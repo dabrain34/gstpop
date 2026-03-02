@@ -113,7 +113,14 @@ pub struct TagsInfo {
 /// returned as-is. Otherwise it is treated as a file path: relative paths are
 /// resolved against the current working directory and the result is converted to
 /// a `file://` URI.
-pub(crate) fn normalize_uri(uri: &str) -> Result<String> {
+pub fn normalize_uri(uri: &str) -> Result<String> {
+    let uri = uri.trim();
+    if uri.is_empty() {
+        return Err(GstpopError::DiscoveryFailed(
+            "Empty URI provided".to_string(),
+        ));
+    }
+
     if uri.contains("://") {
         return Ok(uri.to_string());
     }
@@ -126,6 +133,8 @@ pub(crate) fn normalize_uri(uri: &str) -> Result<String> {
             .map_err(|e| GstpopError::DiscoveryFailed(format!("Cannot resolve path: {}", e)))?
             .join(path)
     };
+    // Canonicalize to resolve .. and symlinks; fall back if file doesn't exist yet
+    let abs = abs.canonicalize().unwrap_or(abs);
 
     // Use forward slashes and proper file URI format for cross-platform compatibility.
     // On Windows, abs.display() produces backslashes which are invalid in file URIs.
@@ -137,6 +146,59 @@ pub(crate) fn normalize_uri(uri: &str) -> Result<String> {
     } else {
         Ok(format!("file:///{}", path_str))
     }
+}
+
+/// Validate that a sink element name does not contain characters that could
+/// inject additional elements or properties into the pipeline description.
+fn validate_sink_name(name: &str) -> Result<()> {
+    if name.is_empty() {
+        return Err(GstpopError::InvalidPipeline(
+            "Empty sink element name".to_string(),
+        ));
+    }
+    if name.contains('!')
+        || name.contains('"')
+        || name.contains('\'')
+        || name.contains('`')
+        || name.contains('\\')
+    {
+        return Err(GstpopError::InvalidPipeline(format!(
+            "Invalid sink element name: {}",
+            name
+        )));
+    }
+    Ok(())
+}
+
+/// Build a playbin pipeline description from a URI and optional sink overrides.
+///
+/// Uses `playbin3` by default. Set `use_playbin2` to `true` to fall back to
+/// the legacy `playbin` element.
+/// The URI is normalized (bare file paths are converted to `file://` URIs).
+/// Optional `video_sink` and `audio_sink` parameters override the default sinks.
+pub fn build_playbin_description(
+    uri: &str,
+    video_sink: Option<&str>,
+    audio_sink: Option<&str>,
+    use_playbin2: bool,
+) -> Result<String> {
+    let uri = normalize_uri(uri)?;
+    if let Some(vs) = video_sink {
+        validate_sink_name(vs)?;
+    }
+    if let Some(a_s) = audio_sink {
+        validate_sink_name(a_s)?;
+    }
+    let element = if use_playbin2 { "playbin" } else { "playbin3" };
+    let escaped_uri = uri.replace('"', r#"\""#);
+    let mut desc = format!("{} uri=\"{}\"", element, escaped_uri);
+    if let Some(vs) = video_sink {
+        desc.push_str(&format!(" video-sink={}", vs));
+    }
+    if let Some(a_s) = audio_sink {
+        desc.push_str(&format!(" audio-sink={}", a_s));
+    }
+    Ok(desc)
 }
 
 /// Discover media information for a given URI or file path.

@@ -65,6 +65,43 @@ impl ManagerInterface {
         serde_json::to_string(&result).map_err(|e| zbus::fdo::Error::Failed(e.to_string()))
     }
 
+    async fn play_uri(
+        &self,
+        uri: &str,
+        video_sink: &str,
+        audio_sink: &str,
+        use_playbin2: bool,
+    ) -> zbus::fdo::Result<String> {
+        let vs = if video_sink.is_empty() {
+            None
+        } else {
+            Some(video_sink)
+        };
+        let a_s = if audio_sink.is_empty() {
+            None
+        } else {
+            Some(audio_sink)
+        };
+
+        let description =
+            crate::gst::discoverer::build_playbin_description(uri, vs, a_s, use_playbin2)
+                .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
+
+        let pipeline_id = self
+            .manager
+            .add_pipeline(&description)
+            .await
+            .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
+
+        if let Err(e) = self.manager.play(&pipeline_id).await {
+            // Clean up the pipeline we just created so it doesn't consume a slot
+            let _ = self.manager.remove_pipeline(&pipeline_id).await;
+            return Err(zbus::fdo::Error::Failed(e.to_string()));
+        }
+
+        Ok(pipeline_id)
+    }
+
     async fn update_pipeline(&self, id: &str, description: &str) -> zbus::fdo::Result<()> {
         self.manager
             .update_pipeline(id, description)
