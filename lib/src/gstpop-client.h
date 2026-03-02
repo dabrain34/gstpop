@@ -108,6 +108,7 @@ gchar *gstpop_client_get_info (GSTPOPClient *client);
 gchar *gstpop_client_get_pipeline_count (GSTPOPClient *client);
 gchar *gstpop_client_get_elements (GSTPOPClient *client, const gchar *detail);
 gchar *gstpop_client_discover_uri (GSTPOPClient *client, const gchar *uri, guint timeout);
+gchar *gstpop_client_play_uri (GSTPOPClient *client, const gchar *uri, gboolean use_playbin2);
 
 /* Utility functions */
 gchar *gstpop_json_to_pretty_string (JsonNode *node);

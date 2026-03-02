@@ -39,6 +39,9 @@ enum Commands {
 
     /// Discover media information for a URI
     Discover(cmd::discover::DiscoverArgs),
+
+    /// Play a media URI using playbin
+    Play(cmd::play::PlayArgs),
 }
 
 #[tokio::main]
@@ -63,6 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(Commands::Launch(args)) => cmd::launch::run(args).await,
         Some(Commands::Inspect(args)) => cmd::inspect::run(args),
         Some(Commands::Discover(args)) => cmd::discover::run(args),
+        Some(Commands::Play(args)) => cmd::play::run(args).await,
         None => {
             if cli.pipeline.is_empty() {
                 // No subcommand and no pipeline: print help

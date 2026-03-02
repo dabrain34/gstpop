@@ -23,6 +23,7 @@ GStreamer Prince of Parser - A pipeline management tool with WebSocket and DBus 
   - [Client Examples](#client-examples)
 - [Launch Subcommand](#launch-subcommand)
   - [Exit Codes](#exit-codes)
+- [Play Subcommand](#play-subcommand)
 - [WebSocket API](#websocket-api)
   - [Protocol](#protocol)
   - [Methods](#methods)
@@ -173,6 +174,7 @@ ninja -C builddir
 | `gst-pop daemon` | Start the WebSocket/DBus server |
 | `gst-pop launch` | Launch pipelines and exit when all finish |
 | `gst-pop inspect` | Inspect GStreamer elements |
+| `gst-pop play` | Play a media URI using playbin3 (or playbin with `--playbin2`) |
 | `gst-pop discover` | Discover media information for a URI |
 | `gst-pop <PIPELINE>` | Default: launch a single pipeline (same as `gst-pop launch <PIPELINE>`) |
 
@@ -320,6 +322,26 @@ gst-pop launch \
 | `69` | At least one pipeline had unsupported media (EX_UNAVAILABLE, matching gst-launch convention) |
 
 Error takes priority over unsupported: if any pipeline errors and another has unsupported media, exit code is `1`.
+
+## Play Subcommand
+
+The `play` subcommand plays a media URI using GStreamer's `playbin3` (default) or legacy `playbin`. It accepts file paths, `file://` URIs, and network URIs (`http://`, `rtsp://`, etc.).
+
+```bash
+# Play a local file (bare path is automatically converted to file:// URI)
+gst-pop play /path/to/video.mp4
+
+# Play a network stream
+gst-pop play https://example.com/stream.mp4
+
+# Override the video or audio sink
+gst-pop play video.mp4 --video-sink fakesink --audio-sink autoaudiosink
+
+# Use legacy playbin instead of playbin3
+gst-pop play video.mp4 --playbin2
+```
+
+The same functionality is available via WebSocket (`play_uri` method) and DBus (`PlayUri` method) when the daemon is running.
 
 ## WebSocket API
 

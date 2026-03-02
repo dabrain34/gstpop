@@ -591,3 +591,14 @@ gstpop_client_discover_uri (GSTPOPClient *client, const gchar *uri, guint timeou
   json_object_unref (params);
   return id;
 }
+
+gchar *
+gstpop_client_play_uri (GSTPOPClient *client, const gchar *uri, gboolean use_playbin2)
+{
+  JsonObject *params = json_object_new ();
+  json_object_set_string_member (params, "uri", uri);
+  json_object_set_boolean_member (params, "use_playbin2", use_playbin2);
+  gchar *id = gstpop_client_send_request (client, "play_uri", params);
+  json_object_unref (params);
+  return id;
+}

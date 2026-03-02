@@ -6,7 +6,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::gst::discoverer::{discover_uri, normalize_uri, DEFAULT_TIMEOUT_SECS};
+use crate::gst::discoverer::{
+    build_playbin_description, discover_uri, normalize_uri, DEFAULT_TIMEOUT_SECS,
+};
 
 #[test]
 fn test_discover_invalid_uri() {
@@ -83,4 +85,118 @@ fn test_normalize_uri_relative_path() {
         uri.strip_prefix("file://").unwrap()
     };
     assert!(std::path::Path::new(path_part).is_absolute());
+}
+
+#[test]
+fn test_normalize_uri_empty_string() {
+    let result = normalize_uri("");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_normalize_uri_whitespace_only() {
+    let result = normalize_uri("   ");
+    assert!(result.is_err());
+}
+
+// --- build_playbin_description tests ---
+
+#[test]
+fn test_build_playbin_description_default_playbin3() {
+    let desc = build_playbin_description("file:///test.mp4", None, None, false).unwrap();
+    assert_eq!(desc, r#"playbin3 uri="file:///test.mp4""#);
+}
+
+#[test]
+fn test_build_playbin_description_playbin2_fallback() {
+    let desc = build_playbin_description("file:///test.mp4", None, None, true).unwrap();
+    assert!(
+        desc.starts_with("playbin "),
+        "Should use 'playbin' not 'playbin3'"
+    );
+    assert!(desc.contains(r#"uri="file:///test.mp4""#));
+}
+
+#[test]
+fn test_build_playbin_description_with_video_sink() {
+    let desc =
+        build_playbin_description("file:///test.mp4", Some("fakesink"), None, false).unwrap();
+    assert_eq!(
+        desc,
+        r#"playbin3 uri="file:///test.mp4" video-sink=fakesink"#
+    );
+}
+
+#[test]
+fn test_build_playbin_description_with_audio_sink() {
+    let desc =
+        build_playbin_description("file:///test.mp4", None, Some("autoaudiosink"), false).unwrap();
+    assert_eq!(
+        desc,
+        r#"playbin3 uri="file:///test.mp4" audio-sink=autoaudiosink"#
+    );
+}
+
+#[test]
+fn test_build_playbin_description_with_both_sinks() {
+    let desc = build_playbin_description(
+        "file:///test.mp4",
+        Some("glimagesink"),
+        Some("pulsesink"),
+        false,
+    )
+    .unwrap();
+    assert_eq!(
+        desc,
+        r#"playbin3 uri="file:///test.mp4" video-sink=glimagesink audio-sink=pulsesink"#
+    );
+}
+
+#[test]
+fn test_build_playbin_description_normalizes_relative_path() {
+    let desc = build_playbin_description("video.mp4", None, None, false).unwrap();
+    assert!(desc.starts_with("playbin3 "));
+    assert!(desc.contains("file://"));
+    assert!(desc.contains("video.mp4"));
+}
+
+#[test]
+fn test_build_playbin_description_http_uri_passthrough() {
+    let desc =
+        build_playbin_description("http://example.com/stream.mp4", None, None, false).unwrap();
+    assert_eq!(desc, r#"playbin3 uri="http://example.com/stream.mp4""#);
+}
+
+#[test]
+fn test_build_playbin_description_rejects_injection_in_video_sink() {
+    let result = build_playbin_description(
+        "file:///test.mp4",
+        Some("fakesink ! filesrc location=/etc/passwd"),
+        None,
+        false,
+    );
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_build_playbin_description_rejects_injection_in_audio_sink() {
+    let result = build_playbin_description(
+        "file:///test.mp4",
+        None,
+        Some(r#"fakesink" uri="http://evil.com"#),
+        false,
+    );
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_build_playbin_description_rejects_empty_sink() {
+    let result = build_playbin_description("file:///test.mp4", Some(""), None, false);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_build_playbin_description_empty_uri() {
+    let result = build_playbin_description("", None, None, false);
+    assert!(result.is_err());
 }

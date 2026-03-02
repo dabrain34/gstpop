@@ -69,3 +69,41 @@ fn discover_subcommand_parses() {
     let cli = Cli::parse_from(["gst-pop", "discover", "file:///test.mp4"]);
     assert!(matches!(cli.command, Some(Commands::Discover(_))));
 }
+
+#[test]
+fn play_subcommand_parses() {
+    let cli = Cli::parse_from(["gst-pop", "play", "file:///test.mp4"]);
+    assert!(matches!(cli.command, Some(Commands::Play(_))));
+}
+
+#[test]
+fn play_with_sinks_parses() {
+    let cli = Cli::parse_from([
+        "gst-pop",
+        "play",
+        "file:///test.mp4",
+        "--video-sink",
+        "fakesink",
+        "--audio-sink",
+        "autoaudiosink",
+    ]);
+    if let Some(Commands::Play(args)) = cli.command {
+        assert_eq!(args.uri, "file:///test.mp4");
+        assert_eq!(args.video_sink, Some("fakesink".to_string()));
+        assert_eq!(args.audio_sink, Some("autoaudiosink".to_string()));
+        assert!(!args.playbin2);
+    } else {
+        panic!("Expected Play subcommand");
+    }
+}
+
+#[test]
+fn play_with_playbin2_parses() {
+    let cli = Cli::parse_from(["gst-pop", "play", "file:///test.mp4", "--playbin2"]);
+    if let Some(Commands::Play(args)) = cli.command {
+        assert_eq!(args.uri, "file:///test.mp4");
+        assert!(args.playbin2);
+    } else {
+        panic!("Expected Play subcommand");
+    }
+}

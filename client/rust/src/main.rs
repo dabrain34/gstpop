@@ -65,6 +65,7 @@ fn print_help() {
     println!("  count                    - Get pipeline count");
     println!("  elements [detail]        - List GStreamer elements (detail: none, summary, full)");
     println!("  discover <uri> [timeout] - Discover media info for a URI");
+    println!("  play_uri <uri> [playbin2] - Play a media URI using playbin3 (or playbin2)");
     println!("  help                     - Show this help");
     println!("  quit                     - Exit");
     println!();
@@ -185,6 +186,18 @@ fn parse_command(line: &str) -> Option<Request> {
                 "timeout": parts.get(2).and_then(|s| s.parse::<u32>().ok())
             }),
         }),
+        "play_uri" if parts.len() >= 2 => {
+            let use_playbin2 = parts.get(2).map_or(false, |s| *s == "playbin2");
+            Some(Request {
+                id: new_id(),
+                method: "play_uri".to_string(),
+                params: serde_json::json!({
+                    "uri": parts[1],
+                    "use_playbin2": use_playbin2
+                }),
+            })
+        }
+
         "help" => {
             print_help();
             None
