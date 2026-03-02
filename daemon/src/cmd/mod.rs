@@ -9,4 +9,4 @@
 pub mod daemon;
 pub mod discover;
 pub mod inspect;
-pub mod play;
+pub mod launch;

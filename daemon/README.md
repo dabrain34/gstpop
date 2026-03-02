@@ -21,7 +21,7 @@ GStreamer Prince of Parser - A pipeline management tool with WebSocket and DBus 
 - [Authentication](#authentication)
   - [Authentication Responses](#authentication-responses)
   - [Client Examples](#client-examples)
-- [Play Subcommand](#play-subcommand)
+- [Launch Subcommand](#launch-subcommand)
   - [Exit Codes](#exit-codes)
 - [WebSocket API](#websocket-api)
   - [Protocol](#protocol)
@@ -39,7 +39,7 @@ GStreamer Prince of Parser - A pipeline management tool with WebSocket and DBus 
 
 ## Overview
 
-`gst-pop` is a GStreamer pipeline management tool that allows you to create, control, and monitor GStreamer pipelines through WebSocket and DBus interfaces. It provides subcommands for running the daemon, playing pipelines, inspecting elements, and discovering media.
+`gst-pop` is a GStreamer pipeline management tool that allows you to create, control, and monitor GStreamer pipelines through WebSocket and DBus interfaces. It provides subcommands for running the daemon, launching pipelines, inspecting elements, and discovering media. Running a pipeline is the default action — `gst-pop "pipeline_desc"` works like `gst-launch-1.0`.
 
 ## Features
 
@@ -131,7 +131,7 @@ daemon/src/
 
 **Platform-specific DBus.** The entire `dbus/` module is conditionally compiled with `#[cfg(target_os = "linux")]`. The `DbusServer` listens for `PipelineAdded`/`PipelineRemoved` events and dynamically registers/unregisters `org.gstpop.Pipeline{N}` objects on the session bus via zbus.
 
-**Play subcommand.** The `gst-pop play` subcommand runs a dedicated tokio task that tracks pipeline completion events against a `HashSet<String>` of pending pipeline IDs. When all pipelines finish, a oneshot channel signals the main loop to exit with the appropriate exit code (0 for success, 1 for error, 69 for unsupported media).
+**Launch subcommand (default).** The `gst-pop launch` subcommand (also the default when a pipeline description is given directly) runs a dedicated tokio task that tracks pipeline completion events against a `HashSet<String>` of pending pipeline IDs. When all pipelines finish, a oneshot channel signals the main loop to exit with the appropriate exit code (0 for success, 1 for error, 69 for unsupported media).
 
 ## Building
 
@@ -171,9 +171,10 @@ ninja -C builddir
 | Subcommand | Description |
 |------------|-------------|
 | `gst-pop daemon` | Start the WebSocket/DBus server |
-| `gst-pop play` | Play pipelines and exit when all finish |
+| `gst-pop launch` | Launch pipelines and exit when all finish |
 | `gst-pop inspect` | Inspect GStreamer elements |
 | `gst-pop discover` | Discover media information for a URI |
+| `gst-pop <PIPELINE>` | Default: launch a single pipeline (same as `gst-pop launch <PIPELINE>`) |
 
 ### Running the Server
 
@@ -293,16 +294,19 @@ curl -i -N \
   http://localhost:9000/
 ```
 
-## Play Subcommand
+## Launch Subcommand
 
-The `gst-pop play` subcommand turns gst-pop into a batch pipeline runner. All pipelines specified with `--pipeline` are automatically played on startup and gst-pop exits when every pipeline has finished.
+The `launch` subcommand (also the default) turns gst-pop into a batch pipeline runner. Pipelines are automatically played on startup and gst-pop exits when every pipeline has finished.
 
 ```bash
-# Play a single pipeline and exit on EOS
-gst-pop play -p "filesrc location=video.mp4 ! decodebin ! fakesink"
+# Launch a single pipeline (default subcommand, works like gst-launch-1.0)
+gst-pop "filesrc location=video.mp4 ! decodebin ! fakesink"
 
-# Play multiple pipelines in parallel, exit when all finish
-gst-pop play \
+# Equivalent explicit form
+gst-pop launch "filesrc location=video.mp4 ! decodebin ! fakesink"
+
+# Launch multiple pipelines in parallel with -p flags, exit when all finish
+gst-pop launch \
   -p "filesrc location=video1.mp4 ! decodebin ! fakesink" \
   -p "filesrc location=video2.mp4 ! decodebin ! fakesink"
 ```

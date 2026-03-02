@@ -1,4 +1,4 @@
-// cmd/play.rs
+// cmd/launch.rs
 //
 // Copyright 2026 Stéphane Cerveau <scerveau@igalia.com>
 //
@@ -14,22 +14,38 @@ use tracing::{error, info, warn};
 use gstpop::gst::{create_event_channel, PipelineManager};
 use gstpop::playback::PlaybackTracker;
 
-/// Play pipelines and exit when all finish
+/// Launch pipelines and exit when all finish
 #[derive(Args, Debug)]
-pub struct PlayArgs {
-    /// Pipeline description(s) to play
-    #[arg(short = 'p', long = "pipeline", required = true)]
+pub struct LaunchArgs {
+    /// Pipeline description(s) to launch
+    #[arg(short = 'p', long = "pipeline")]
     pub pipelines: Vec<String>,
+
+    /// Pipeline description (positional)
+    #[arg(value_name = "PIPELINE")]
+    pub pipeline: Option<String>,
 }
 
-pub async fn run(args: PlayArgs) -> i32 {
+pub async fn run(args: LaunchArgs) -> i32 {
+    // Merge positional pipeline with -p flag pipelines
+    let mut all_pipelines = Vec::new();
+    if let Some(ref p) = args.pipeline {
+        all_pipelines.push(p.clone());
+    }
+    all_pipelines.extend(args.pipelines.iter().cloned());
+
+    if all_pipelines.is_empty() {
+        error!("No pipeline description provided");
+        return 1;
+    }
+
     let (event_tx, _) = create_event_channel();
     let manager = Arc::new(PipelineManager::new(event_tx.clone()));
 
     // Create pipelines
     let mut ids = Vec::new();
     let mut creation_failures = 0usize;
-    for desc in &args.pipelines {
+    for desc in &all_pipelines {
         match manager.add_pipeline(desc).await {
             Ok(id) => {
                 info!("Created pipeline '{}': {}", id, desc);
