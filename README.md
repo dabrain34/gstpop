@@ -1,8 +1,8 @@
 ### Description
 
-**gstpop** (GstPrinceOfParser) is a GStreamer pipeline management daemon that allows you to create, control, and monitor GStreamer media pipelines remotely via WebSocket or DBus interfaces.
+**gst-pop** (GstPrinceOfParser) is a GStreamer pipeline management daemon that allows you to create, control, and monitor GStreamer media pipelines remotely via WebSocket or DBus interfaces.
 
-### Why Use gstpop?
+### Why Use gst-pop?
 
 #### Process Isolation
 Run GStreamer pipelines in a separate process from your main application. If a pipeline crashes due to a buggy codec or driver issue, your application continues running unaffected.
@@ -20,7 +20,7 @@ Create and manage multiple independent pipelines simultaneously:
 - Monitor and control each pipeline individually
 
 #### Language Agnostic
-Any language that can speak WebSocket and JSON can control gstpop:
+Any language that can speak WebSocket and JSON can control gst-pop:
 - Use the provided Rust or C clients
 - Integrate with Python, JavaScript, Go, or any other language
 - Build custom dashboards or automation scripts
@@ -91,7 +91,7 @@ ninja -C builddir
 Start the WebSocket server:
 
 ```
-./builddir/release/gstpop daemon
+./builddir/release/gst-pop daemon
 ```
 
 By default, the server binds to `ws://127.0.0.1:9000`.
@@ -117,29 +117,29 @@ By default, the server binds to `ws://127.0.0.1:9000`.
 Example with custom settings:
 
 ```
-./builddir/release/gstpop daemon --bind 0.0.0.0 --port 8080
+./builddir/release/gst-pop daemon --bind 0.0.0.0 --port 8080
 ```
 
 Example with authentication:
 
 ```
 # Recommended: use environment variable (avoids exposing key in process listing)
-GSTPOP_API_KEY=mysecretkey ./builddir/release/gstpop daemon
+GSTPOP_API_KEY=mysecretkey ./builddir/release/gst-pop daemon
 
 # Alternative: via command-line argument (visible in `ps` output)
-./builddir/release/gstpop daemon --api-key mysecretkey
+./builddir/release/gst-pop daemon --api-key mysecretkey
 ```
 
 #### Running the Rust Client
 
 ```
-./builddir/release/gstpop-client
+./builddir/release/gst-pop-client
 ```
 
 Or connect to a specific server:
 
 ```
-./builddir/release/gstpop-client ws://192.168.1.100:9000
+./builddir/release/gst-pop-client ws://192.168.1.100:9000
 ```
 
 See [daemon/README.md](daemon/README.md) for full API documentation.

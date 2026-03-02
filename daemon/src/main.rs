@@ -13,7 +13,7 @@ use tracing_subscriber::EnvFilter;
 mod cmd;
 
 #[derive(Parser, Debug)]
-#[command(name = "gstpop")]
+#[command(name = "gst-pop")]
 #[command(author = "Stéphane Cerveau")]
 #[command(version)]
 #[command(about = "GStreamer Prince of Parser - Pipeline management tool")]

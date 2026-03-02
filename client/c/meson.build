@@ -1,4 +1,4 @@
-# C WebSocket client for gstpop
+# C WebSocket client for gst-pop
 
 # readline doesn't have pkg-config, use compiler.find_library
 cc = meson.get_compiler('c')

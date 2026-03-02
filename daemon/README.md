@@ -1,4 +1,4 @@
-# gstpop
+# gst-pop
 
 GStreamer Prince of Parser - A pipeline management tool with WebSocket and DBus interfaces.
 
@@ -39,7 +39,7 @@ GStreamer Prince of Parser - A pipeline management tool with WebSocket and DBus 
 
 ## Overview
 
-`gstpop` is a GStreamer pipeline management tool that allows you to create, control, and monitor GStreamer pipelines through WebSocket and DBus interfaces. It provides subcommands for running the daemon, playing pipelines, inspecting elements, and discovering media.
+`gst-pop` is a GStreamer pipeline management tool that allows you to create, control, and monitor GStreamer pipelines through WebSocket and DBus interfaces. It provides subcommands for running the daemon, playing pipelines, inspecting elements, and discovering media.
 
 ## Features
 
@@ -131,7 +131,7 @@ daemon/src/
 
 **Platform-specific DBus.** The entire `dbus/` module is conditionally compiled with `#[cfg(target_os = "linux")]`. The `DbusServer` listens for `PipelineAdded`/`PipelineRemoved` events and dynamically registers/unregisters `org.gstpop.Pipeline{N}` objects on the session bus via zbus.
 
-**Play subcommand.** The `gstpop play` subcommand runs a dedicated tokio task that tracks pipeline completion events against a `HashSet<String>` of pending pipeline IDs. When all pipelines finish, a oneshot channel signals the main loop to exit with the appropriate exit code (0 for success, 1 for error, 69 for unsupported media).
+**Play subcommand.** The `gst-pop play` subcommand runs a dedicated tokio task that tracks pipeline completion events against a `HashSet<String>` of pending pipeline IDs. When all pipelines finish, a oneshot channel signals the main loop to exit with the appropriate exit code (0 for success, 1 for error, 69 for unsupported media).
 
 ## Building
 
@@ -142,7 +142,7 @@ cd daemon
 cargo build --release
 ```
 
-The binary will be at `target/release/gstpop`.
+The binary will be at `target/release/gst-pop`.
 
 ### With Meson (full project)
 
@@ -153,7 +153,7 @@ meson setup builddir
 ninja -C builddir
 ```
 
-The binary will be at `builddir/release/gstpop`.
+The binary will be at `builddir/release/gst-pop`.
 
 To build only the daemon (without clients):
 
@@ -164,34 +164,34 @@ ninja -C builddir
 
 ## Running
 
-`gstpop` uses subcommands. Run `gstpop --help` or `gstpop <subcommand> --help` for full details.
+`gst-pop` uses subcommands. Run `gst-pop --help` or `gst-pop <subcommand> --help` for full details.
 
 ### Subcommands
 
 | Subcommand | Description |
 |------------|-------------|
-| `gstpop daemon` | Start the WebSocket/DBus server |
-| `gstpop play` | Play pipelines and exit when all finish |
-| `gstpop inspect` | Inspect GStreamer elements |
-| `gstpop discover` | Discover media information for a URI |
+| `gst-pop daemon` | Start the WebSocket/DBus server |
+| `gst-pop play` | Play pipelines and exit when all finish |
+| `gst-pop inspect` | Inspect GStreamer elements |
+| `gst-pop discover` | Discover media information for a URI |
 
 ### Running the Server
 
 ```bash
 # Default: bind to 127.0.0.1:9000
-gstpop daemon
+gst-pop daemon
 
 # Custom bind address and port
-gstpop daemon --bind 0.0.0.0 --port 8080
+gst-pop daemon --bind 0.0.0.0 --port 8080
 
 # With initial pipeline
-gstpop daemon -p "videotestsrc ! autovideosink"
+gst-pop daemon -p "videotestsrc ! autovideosink"
 
 # With authentication
-gstpop daemon --api-key mysecretkey
+gst-pop daemon --api-key mysecretkey
 
 # Enable debug logging
-RUST_LOG=debug gstpop daemon
+RUST_LOG=debug gst-pop daemon
 ```
 
 ### Daemon Options
@@ -221,13 +221,13 @@ For deployments where the server is exposed on a network or in multi-user enviro
 
 ```bash
 # Via command line
-gstpop daemon --api-key mysecretkey
+gst-pop daemon --api-key mysecretkey
 
 # Via environment variable
-GSTPOP_API_KEY=mysecretkey gstpop daemon
+GSTPOP_API_KEY=mysecretkey gst-pop daemon
 
 # Combined with network binding
-gstpop daemon --bind 0.0.0.0 --api-key mysecretkey
+gst-pop daemon --bind 0.0.0.0 --api-key mysecretkey
 ```
 
 When authentication is enabled, clients must include the API key in the `Authorization` header during the WebSocket handshake:
@@ -295,14 +295,14 @@ curl -i -N \
 
 ## Play Subcommand
 
-The `gstpop play` subcommand turns gstpop into a batch pipeline runner. All pipelines specified with `--pipeline` are automatically played on startup and gstpop exits when every pipeline has finished.
+The `gst-pop play` subcommand turns gst-pop into a batch pipeline runner. All pipelines specified with `--pipeline` are automatically played on startup and gst-pop exits when every pipeline has finished.
 
 ```bash
 # Play a single pipeline and exit on EOS
-gstpop play -p "filesrc location=video.mp4 ! decodebin ! fakesink"
+gst-pop play -p "filesrc location=video.mp4 ! decodebin ! fakesink"
 
 # Play multiple pipelines in parallel, exit when all finish
-gstpop play \
+gst-pop play \
   -p "filesrc location=video1.mp4 ! decodebin ! fakesink" \
   -p "filesrc location=video2.mp4 ! decodebin ! fakesink"
 ```
@@ -855,7 +855,7 @@ Goodbye!
 
 ## DBus Interface (Linux only)
 
-On Linux, gstpop also exposes a DBus interface on the session bus.
+On Linux, gst-pop also exposes a DBus interface on the session bus.
 
 ### Service Name
 

@@ -1,19 +1,19 @@
-# gstpop Clients
+# gst-pop Clients
 
-Interactive WebSocket clients for controlling gstpop. Both clients implement the same JSON-RPC 2.0 protocol and provide identical functionality.
+Interactive WebSocket clients for controlling gst-pop. Both clients implement the same JSON-RPC 2.0 protocol and provide identical functionality.
 
 ## Available Clients
 
 | Client | Language | Location | Dependencies |
 |--------|----------|----------|--------------|
-| gstpop-client | Rust | `rust/` | tokio, tungstenite, serde_json, rustyline |
+| gst-pop-client | Rust | `rust/` | tokio, tungstenite, serde_json, rustyline |
 | gstpop-client-c | C | `c/` | libsoup-2.4, json-glib, glib, readline |
 
 ## Features
 
 - **Command history**: Use up/down arrow keys to navigate through previously entered commands (session-only, not persisted to disk)
 - **Line editing**: Full readline-style editing with cursor movement, delete, backspace, etc.
-- **JSON-RPC 2.0**: Standard protocol for communication with gstpop
+- **JSON-RPC 2.0**: Standard protocol for communication with gst-pop
 - **Event handling**: Asynchronous display of pipeline events while maintaining input prompt
 
 ## Building
@@ -21,8 +21,8 @@ Interactive WebSocket clients for controlling gstpop. Both clients implement the
 ### Rust Client
 
 ```bash
-cargo build --release -p gstpop-client
-# Binary: target/release/gstpop-client
+cargo build --release -p gst-pop-client
+# Binary: target/release/gst-pop-client
 ```
 
 ### C Client
@@ -37,10 +37,10 @@ ninja -C builddir gstpop-client-c
 
 ```bash
 # Connect to default address (ws://127.0.0.1:9000)
-./gstpop-client
+./gst-pop-client
 
 # Connect to custom address
-./gstpop-client ws://192.168.1.100:8080
+./gst-pop-client ws://192.168.1.100:8080
 ```
 
 ## Commands
@@ -71,7 +71,7 @@ For the `snapshot` command: `media`, `caps`, `states`, `all` (optional, defaults
 
 ## Protocol
 
-Both clients communicate with gstpop using JSON-RPC 2.0 over WebSocket.
+Both clients communicate with gst-pop using JSON-RPC 2.0 over WebSocket.
 
 ### Request Format
 
@@ -126,7 +126,7 @@ Event types: `state_changed`, `error`, `eos`, `pipeline_added`, `pipeline_update
 ## Example Session
 
 ```
-$ ./gstpop-client
+$ ./gst-pop-client
 Connecting to ws://127.0.0.1:9000...
 Connected!
 
