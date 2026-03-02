@@ -166,7 +166,7 @@ pub async fn run(args: DaemonArgs) -> i32 {
     };
 
     // Wait for shutdown signal
-    info!("gstpop daemon started. Press Ctrl+C to stop.");
+    info!("gst-pop daemon started. Press Ctrl+C to stop.");
 
     if let Err(e) = gstpop::signal::wait_for_shutdown().await {
         error!("{}", e);

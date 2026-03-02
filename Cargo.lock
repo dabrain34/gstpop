@@ -558,7 +558,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gstpop"
+name = "gst-pop"
 version = "0.2.0"
 dependencies = [
  "clap",
@@ -578,7 +578,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gstpop-client"
+name = "gst-pop-client"
 version = "0.2.0"
 dependencies = [
  "futures-util",

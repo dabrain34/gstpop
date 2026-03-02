@@ -1,11 +1,11 @@
 [package]
-name = "gstpop"
+name = "gst-pop"
 version = "0.2.0"
 edition = "2021"
 authors = ["Stéphane Cerveau"]
 license = "GPL-3.0-or-later"
 description = "GStreamer Prince of Parser - Pipeline management daemon with DBus and WebSocket interfaces"
-repository = "https://github.com/dabrain34/gstpop"
+repository = "https://github.com/dabrain34/GstPrinceOfParser"
 
 [dependencies]
 # GStreamer bindings
@@ -41,7 +41,7 @@ name = "gstpop"
 path = "src/lib.rs"
 
 [[bin]]
-name = "gstpop"
+name = "gst-pop"
 path = "src/main.rs"
 
 [[example]]
