@@ -14,6 +14,7 @@ use tracing::{error, info, warn};
 use gstpop::gst::discoverer::build_playbin_description;
 use gstpop::gst::{create_event_channel, PipelineManager};
 use gstpop::playback::PlaybackTracker;
+use gstpop::server::ServerHandle;
 
 /// Play a media URI using playbin
 #[derive(Args, Debug)]
@@ -32,6 +33,9 @@ pub struct PlayArgs {
     /// Use legacy playbin instead of playbin3
     #[arg(long)]
     pub playbin2: bool,
+
+    #[command(flatten)]
+    pub server: super::common::ServerArgs,
 }
 
 pub async fn run(args: PlayArgs) -> i32 {
@@ -51,6 +55,11 @@ pub async fn run(args: PlayArgs) -> i32 {
     let (event_tx, _) = create_event_channel();
     let manager = Arc::new(PipelineManager::new(event_tx.clone()));
 
+    // Start servers (non-fatal — playback continues even if servers fail)
+    let servers = ServerHandle::start(args.server.into_config(), Arc::clone(&manager), &event_tx)
+        .await
+        .ok();
+
     let id = match manager.add_pipeline(&description).await {
         Ok(id) => {
             info!("Created pipeline '{}': {}", id, description);
@@ -58,6 +67,9 @@ pub async fn run(args: PlayArgs) -> i32 {
         }
         Err(e) => {
             error!("Failed to create pipeline: {}", e);
+            if let Some(s) = servers {
+                s.shutdown();
+            }
             return 1;
         }
     };
@@ -69,6 +81,9 @@ pub async fn run(args: PlayArgs) -> i32 {
     if !failed.is_empty() {
         error!("Failed to start playback for URI: {}", args.uri);
         manager.shutdown().await;
+        if let Some(s) = servers {
+            s.shutdown();
+        }
         return 1;
     }
     info!("Playing {}", args.uri);
@@ -108,5 +123,8 @@ pub async fn run(args: PlayArgs) -> i32 {
     };
 
     manager.shutdown().await;
+    if let Some(s) = servers {
+        s.shutdown();
+    }
     exit_code
 }

@@ -6,6 +6,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+pub mod common;
 pub mod daemon;
 pub mod discover;
 pub mod inspect;

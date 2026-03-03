@@ -13,6 +13,7 @@ use tracing::{error, info, warn};
 
 use gstpop::gst::{create_event_channel, PipelineManager};
 use gstpop::playback::PlaybackTracker;
+use gstpop::server::ServerHandle;
 
 /// Launch pipelines and exit when all finish
 #[derive(Args, Debug)]
@@ -24,6 +25,9 @@ pub struct LaunchArgs {
     /// Pipeline description (positional)
     #[arg(value_name = "PIPELINE")]
     pub pipeline: Option<String>,
+
+    #[command(flatten)]
+    pub server: super::common::ServerArgs,
 }
 
 pub async fn run(args: LaunchArgs) -> i32 {
@@ -41,6 +45,11 @@ pub async fn run(args: LaunchArgs) -> i32 {
 
     let (event_tx, _) = create_event_channel();
     let manager = Arc::new(PipelineManager::new(event_tx.clone()));
+
+    // Start servers (non-fatal — playback continues even if servers fail)
+    let servers = ServerHandle::start(args.server.into_config(), Arc::clone(&manager), &event_tx)
+        .await
+        .ok();
 
     // Create pipelines
     let mut ids = Vec::new();
@@ -60,6 +69,9 @@ pub async fn run(args: LaunchArgs) -> i32 {
 
     if ids.is_empty() {
         error!("No pipelines were created successfully");
+        if let Some(s) = servers {
+            s.shutdown();
+        }
         return 1;
     }
 
@@ -106,5 +118,8 @@ pub async fn run(args: LaunchArgs) -> i32 {
     };
 
     manager.shutdown().await;
+    if let Some(s) = servers {
+        s.shutdown();
+    }
     exit_code
 }
