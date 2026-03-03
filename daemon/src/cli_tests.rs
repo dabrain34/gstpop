@@ -107,3 +107,53 @@ fn play_with_playbin2_parses() {
         panic!("Expected Play subcommand");
     }
 }
+
+#[test]
+fn play_with_server_flags_parses() {
+    let cli = Cli::parse_from([
+        "gst-pop",
+        "play",
+        "file:///test.mp4",
+        "--port",
+        "8080",
+        "--no-websocket",
+    ]);
+    if let Some(Commands::Play(args)) = cli.command {
+        assert_eq!(args.uri, "file:///test.mp4");
+        assert_eq!(args.server.port, 8080);
+        assert!(args.server.no_websocket);
+    } else {
+        panic!("Expected Play subcommand");
+    }
+}
+
+#[test]
+fn launch_with_server_flags_parses() {
+    let cli = Cli::parse_from([
+        "gst-pop",
+        "launch",
+        "-p",
+        "fakesrc ! fakesink",
+        "--port",
+        "8080",
+        "--bind",
+        "0.0.0.0",
+    ]);
+    if let Some(Commands::Launch(args)) = cli.command {
+        assert_eq!(args.server.port, 8080);
+        assert_eq!(args.server.bind, "0.0.0.0");
+    } else {
+        panic!("Expected Launch subcommand");
+    }
+}
+
+#[test]
+fn daemon_with_server_flags_parses() {
+    let cli = Cli::parse_from(["gst-pop", "daemon", "--port", "9001", "--api-key", "secret"]);
+    if let Some(Commands::Daemon(args)) = cli.command {
+        assert_eq!(args.server.port, 9001);
+        assert_eq!(args.server.api_key, Some("secret".to_string()));
+    } else {
+        panic!("Expected Daemon subcommand");
+    }
+}

@@ -79,6 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let args = cmd::launch::LaunchArgs {
                     pipelines: vec![],
                     pipeline: Some(pipeline),
+                    server: Default::default(),
                 };
                 cmd::launch::run(args).await
             }
