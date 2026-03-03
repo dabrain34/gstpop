@@ -1,2 +1,2 @@
 option('client', type: 'boolean', value: true, description: 'Build the Rust client')
-option('cclient', type: 'boolean', value: true, description: 'Build the C client')
+option('cclient', type: 'boolean', value: false, description: 'Build the C client')

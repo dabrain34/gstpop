@@ -70,10 +70,15 @@ if host_machine.system() == 'linux'
 endif
 
 if get_option('client')
-  custom_target('gst-pop-client',
-    output: 'gst-pop-client',
-    command: [cargo, 'build', '--release', '-p', 'gst-pop-client', '--target-dir', '@OUTDIR@'],
+  custom_target('gst-popctl',
+    output: 'gst-popctl',
+    command: [cargo, 'build', '--release', '-p', 'gst-popctl', '--target-dir', '@OUTDIR@'],
     console: true,
     build_by_default: true,
   )
+
+  meson.add_install_script('sh', '-c',
+    'install -Dm755 "@0@" "$DESTDIR@1@/gst-popctl"'.format(
+      meson.project_build_root() / 'release' / 'gst-popctl',
+      get_option('prefix') / get_option('bindir')))
 endif
