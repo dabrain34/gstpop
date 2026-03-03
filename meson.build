@@ -1,4 +1,8 @@
-project('gst-pop', 'c', version : '0.2.0', license : 'GPL')
+project('gst-pop', 'c',
+  version : run_command('sh', '-c',
+    'grep -A1 "\\[workspace.package\\]" Cargo.toml | grep version | sed \'s/.*"\\(.*\\)"/\\1/\'',
+    check: true).stdout().strip(),
+  license : 'GPL')
 
 pkg = import('pkgconfig')
 

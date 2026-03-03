@@ -1,6 +1,6 @@
 [package]
 name = "gst-pop"
-version = "0.2.0"
+version.workspace = true
 edition = "2021"
 authors = ["Stéphane Cerveau"]
 license = "GPL-3.0-or-later"
