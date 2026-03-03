@@ -15,7 +15,7 @@ use gstpop::gst::{create_event_channel, PipelineManager};
 use gstpop::server::ServerHandle;
 
 /// Start the daemon with WebSocket and DBus interfaces
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Default)]
 pub struct DaemonArgs {
     /// Initial pipeline(s) to create
     #[arg(short = 'p', long = "pipeline")]
