@@ -55,6 +55,20 @@ if host_machine.system() != 'windows'
   endforeach
 endif
 
+# Install systemd user service (Linux only)
+if host_machine.system() == 'linux'
+  systemd_user_dir = join_paths(get_option('prefix'), 'lib', 'systemd', 'user')
+  configure_file(
+    input: 'data/gst-pop.service.in',
+    output: 'gst-pop.service',
+    configuration: {
+      'bindir': get_option('prefix') / get_option('bindir'),
+    },
+    install: true,
+    install_dir: systemd_user_dir,
+  )
+endif
+
 if get_option('client')
   custom_target('gst-pop-client',
     output: 'gst-pop-client',
