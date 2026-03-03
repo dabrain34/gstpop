@@ -75,7 +75,7 @@ This builds everything:
 | Option | Default | Description |
 |--------|---------|-------------|
 | `client` | `true` | Build the Rust client |
-| `cclient` | `true` | Build the C client |
+| `cclient` | `false` | Build the C client |
 
 Example: build only the daemon (no clients):
 
@@ -146,13 +146,13 @@ GSTPOP_API_KEY=mysecretkey ./builddir/release/gst-pop daemon
 #### Running the Rust Client
 
 ```
-./builddir/release/gst-pop-client
+./builddir/release/gst-popctl
 ```
 
 Or connect to a specific server:
 
 ```
-./builddir/release/gst-pop-client ws://192.168.1.100:9000
+./builddir/release/gst-popctl ws://192.168.1.100:9000
 ```
 
 See [daemon/README.md](daemon/README.md) for full API documentation.
