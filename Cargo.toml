@@ -5,3 +5,6 @@ members = [
 ]
 resolver = "2"
 default-members = ["daemon"]
+
+[workspace.package]
+version = "0.2.0"

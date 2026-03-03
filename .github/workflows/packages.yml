@@ -43,7 +43,7 @@ jobs:
 
       - name: Get version
         id: version
-        run: echo "version=$(grep '^version' daemon/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(grep -A1 '\[workspace.package\]' Cargo.toml | grep version | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Build gst-pop .deb
         run: |
@@ -158,7 +158,7 @@ jobs:
 
       - name: Get version
         id: version
-        run: echo "version=$(grep '^version' daemon/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(grep -A1 '\[workspace.package\]' Cargo.toml | grep version | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Create RPM spec for gst-pop
         run: |
