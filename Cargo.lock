@@ -521,7 +521,7 @@ dependencies = [
 
 [[package]]
 name = "gst-pop"
-version = "0.2.0"
+version = "0.4.0"
 dependencies = [
  "clap",
  "futures-util",
@@ -541,7 +541,7 @@ dependencies = [
 
 [[package]]
 name = "gst-popctl"
-version = "0.2.0"
+version = "0.4.0"
 dependencies = [
  "clap",
  "futures-util",
