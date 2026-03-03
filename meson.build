@@ -22,8 +22,6 @@ gobject_dep = dependency('gobject-2.0', version: glib_req_version,
 gst_dep = dependency('gstreamer-1.0', version: gst_req_version,
     fallback : ['gstreamer', 'gst_dep'])
 
-root_inc = include_directories('.')
-
 # Install git hooks for development
 meson.add_postconf_script('scripts/setup-hooks.sh')
 
@@ -42,6 +40,20 @@ custom_target('gst-pop',
   console: true,
   build_by_default: true,
 )
+
+# Install the cargo-built binary and create busybox-style symlinks (Unix only)
+meson.add_install_script('sh', '-c',
+  'install -Dm755 "@0@" "$DESTDIR@1@/gst-pop"'.format(
+    meson.project_build_root() / 'release' / 'gst-pop',
+    get_option('prefix') / get_option('bindir')))
+
+if host_machine.system() != 'windows'
+  foreach link_name : ['gst-popd', 'gst-pop-launch', 'gst-pop-inspect', 'gst-pop-discover', 'gst-pop-play']
+    meson.add_install_script('sh', '-c',
+      'ln -sf gst-pop "$DESTDIR@0@/@1@"'.format(
+        get_option('prefix') / get_option('bindir'), link_name))
+  endforeach
+endif
 
 if get_option('client')
   custom_target('gst-pop-client',

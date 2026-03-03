@@ -106,6 +106,18 @@ By default, the server binds to `ws://127.0.0.1:9000`.
 | `play` | Play a media URI using playbin3 (or playbin with `--playbin2`) |
 | `discover` | Discover media information for a URI |
 
+#### Busybox-style Symlinks (Unix)
+
+On Unix systems, the installation creates symlinks that let you invoke subcommands directly:
+
+| Symlink | Equivalent | Description |
+|---------|------------|-------------|
+| `gst-popd` | `gst-pop daemon` | Starts the daemon (used by the systemd service) |
+| `gst-pop-launch` | `gst-pop launch` | Like `gst-launch-1.0` but with WebSocket and DBus interfaces |
+| `gst-pop-inspect` | `gst-pop inspect` | Like `gst-inspect-1.0` |
+| `gst-pop-discover` | `gst-pop discover` | Like `gst-discoverer-1.0` |
+| `gst-pop-play` | `gst-pop play` | Like `gst-play-1.0` but with WebSocket and DBus interfaces |
+
 #### Daemon Options
 - `--bind` / `-b`: IP address to bind to (default: `127.0.0.1`)
 - `--port` / `-P`: Port to listen on (default: `9000`)

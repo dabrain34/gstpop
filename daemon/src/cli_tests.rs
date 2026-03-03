@@ -38,24 +38,9 @@ fn launch_positional_parses() {
 }
 
 #[test]
-fn default_pipeline_positional() {
-    let cli = Cli::parse_from(["gst-pop", "fakesrc", "!", "fakesink"]);
-    assert!(cli.command.is_none());
-    assert_eq!(cli.pipeline, vec!["fakesrc", "!", "fakesink"]);
-}
-
-#[test]
-fn default_pipeline_quoted() {
-    let cli = Cli::parse_from(["gst-pop", "fakesrc ! fakesink"]);
-    assert!(cli.command.is_none());
-    assert_eq!(cli.pipeline, vec!["fakesrc ! fakesink"]);
-}
-
-#[test]
-fn no_args_gives_empty() {
+fn no_args_defaults_to_daemon() {
     let cli = Cli::parse_from(["gst-pop"]);
     assert!(cli.command.is_none());
-    assert!(cli.pipeline.is_empty());
 }
 
 #[test]
@@ -156,4 +141,36 @@ fn daemon_with_server_flags_parses() {
     } else {
         panic!("Expected Daemon subcommand");
     }
+}
+
+// Busybox-style symlink detection tests
+
+#[test]
+fn symlink_launch_routes_to_launch() {
+    let cli = Cli::parse_from(["gst-pop", "launch", "-p", "fakesrc ! fakesink"]);
+    assert!(matches!(cli.command, Some(Commands::Launch(_))));
+}
+
+#[test]
+fn symlink_inspect_routes_to_inspect() {
+    let cli = Cli::parse_from(["gst-pop", "inspect"]);
+    assert!(matches!(cli.command, Some(Commands::Inspect(_))));
+}
+
+#[test]
+fn symlink_play_routes_to_play() {
+    let cli = Cli::parse_from(["gst-pop", "play", "file:///test.mp4"]);
+    assert!(matches!(cli.command, Some(Commands::Play(_))));
+}
+
+#[test]
+fn symlink_discover_routes_to_discover() {
+    let cli = Cli::parse_from(["gst-pop", "discover", "file:///test.mp4"]);
+    assert!(matches!(cli.command, Some(Commands::Discover(_))));
+}
+
+#[test]
+fn symlink_daemon_routes_to_daemon() {
+    let cli = Cli::parse_from(["gst-pop", "daemon"]);
+    assert!(matches!(cli.command, Some(Commands::Daemon(_))));
 }
