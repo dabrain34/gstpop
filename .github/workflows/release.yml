@@ -359,11 +359,14 @@ jobs:
                    --define "_sourcedir $(pwd)/rpmbuild/SOURCES" \
                    -bb rpmbuild/SPECS/gst-popctl.spec
 
+      - name: Collect RPMs
+        run: cp rpmbuild/RPMS/**/*.rpm .
+
       - name: Upload RPM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: rpm-packages
-          path: 'rpmbuild/RPMS/**/*.rpm'
+          path: '*.rpm'
           retention-days: 1
 
   release:
