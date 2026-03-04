@@ -166,16 +166,7 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
-This triggers two GitHub Actions workflows:
-- **Release** — builds binaries for Linux, Windows, and macOS, then creates a GitHub Release with platform archives and a source tarball
-- **Packages** — builds `.deb` (Debian/Ubuntu) and `.rpm` (Fedora) packages
-
-You can also trigger these workflows manually from the GitHub Actions UI or CLI:
-
-```bash
-gh workflow run release.yml --ref main -f tag=v0.2.0
-gh workflow run packages.yml --ref main
-```
+This triggers the Release workflow which builds binaries for Linux, Windows, and macOS, creates `.deb` and `.rpm` packages, and publishes a GitHub Release with all artifacts.
 
 ### Security Considerations
 

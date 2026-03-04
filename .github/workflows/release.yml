@@ -100,31 +100,275 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           mkdir staging
-          cp target/release/gpop-daemon staging/
-          cp target/release/gpop-client staging/
+          cp target/release/gst-pop staging/
+          cp target/release/gst-popctl staging/
           cd staging
-          zip ../gpop-${{ env.TAG_NAME }}-${{ matrix.platform }}.zip gpop-daemon gpop-client
+          zip ../gst-pop-${{ env.TAG_NAME }}-${{ matrix.platform }}.zip gst-pop gst-popctl
 
       - name: Package artifacts (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path staging
-          Copy-Item target/release/gpop-daemon.exe staging/
-          Copy-Item target/release/gpop-client.exe staging/
-          Compress-Archive -Path staging/* -DestinationPath gpop-${{ env.TAG_NAME }}-${{ matrix.platform }}.zip
+          Copy-Item target/release/gst-pop.exe staging/
+          Copy-Item target/release/gst-popctl.exe staging/
+          Compress-Archive -Path staging/* -DestinationPath gst-pop-${{ env.TAG_NAME }}-${{ matrix.platform }}.zip
 
       # --- Upload for release job ---
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: gpop-${{ env.TAG_NAME }}-${{ matrix.platform }}
-          path: gpop-${{ env.TAG_NAME }}-${{ matrix.platform }}.zip
+          name: gst-pop-${{ env.TAG_NAME }}-${{ matrix.platform }}
+          path: gst-pop-${{ env.TAG_NAME }}-${{ matrix.platform }}.zip
+          retention-days: 1
+
+  deb:
+    name: Debian package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            dpkg-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-pkg-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-pkg-
+
+      - name: Build release binaries
+        run: cargo build --release --workspace
+
+      - name: Get version
+        id: version
+        run: echo "version=$(grep -A1 '\[workspace.package\]' Cargo.toml | grep version | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_OUTPUT"
+
+      - name: Build gst-pop .deb
+        run: |
+          PKG=gst-pop
+          VER=${{ steps.version.outputs.version }}
+          ARCH=$(dpkg --print-architecture)
+          DIR="${PKG}_${VER}_${ARCH}"
+
+          mkdir -p "$DIR/DEBIAN"
+          mkdir -p "$DIR/usr/bin"
+          mkdir -p "$DIR/usr/lib/systemd/user"
+
+          # Binary
+          install -Dm755 target/release/gst-pop "$DIR/usr/bin/gst-pop"
+
+          # Symlinks
+          ln -sf gst-pop "$DIR/usr/bin/gst-popd"
+          for cmd in launch inspect discover play; do
+            ln -sf gst-pop "$DIR/usr/bin/gst-pop-${cmd}"
+          done
+
+          # Systemd service
+          sed 's|@bindir@|/usr/bin|g' data/gst-pop.service.in > "$DIR/usr/lib/systemd/user/gst-pop.service"
+
+          # Control file
+          cat > "$DIR/DEBIAN/control" <<EOF
+          Package: gst-pop
+          Version: ${VER}
+          Section: multimedia
+          Priority: optional
+          Architecture: ${ARCH}
+          Depends: libgstreamer1.0-0 (>= 1.16), gstreamer1.0-plugins-base
+          Maintainer: Stéphane Cerveau <scerveau@igalia.com>
+          Homepage: https://github.com/dabrain34/GstPrinceOfParser
+          Description: GStreamer pipeline management daemon
+           GStreamer Prince of Parser (gst-pop) is a pipeline management
+           daemon with WebSocket and DBus interfaces for creating,
+           controlling, and monitoring GStreamer media pipelines remotely.
+          EOF
+          # Remove leading spaces from control file (heredoc indentation)
+          sed -i 's/^          //' "$DIR/DEBIAN/control"
+
+          dpkg-deb --build --root-owner-group "$DIR"
+
+      - name: Build gst-popctl .deb
+        run: |
+          PKG=gst-popctl
+          VER=${{ steps.version.outputs.version }}
+          ARCH=$(dpkg --print-architecture)
+          DIR="${PKG}_${VER}_${ARCH}"
+
+          mkdir -p "$DIR/DEBIAN"
+          mkdir -p "$DIR/usr/bin"
+
+          install -Dm755 target/release/gst-popctl "$DIR/usr/bin/gst-popctl"
+
+          cat > "$DIR/DEBIAN/control" <<EOF
+          Package: gst-popctl
+          Version: ${VER}
+          Section: multimedia
+          Priority: optional
+          Architecture: ${ARCH}
+          Depends: gst-pop (= ${VER})
+          Maintainer: Stéphane Cerveau <scerveau@igalia.com>
+          Homepage: https://github.com/dabrain34/GstPrinceOfParser
+          Description: WebSocket control client for gst-pop
+           Command-line control client for managing a gst-pop
+           daemon over WebSocket.
+          EOF
+          sed -i 's/^          //' "$DIR/DEBIAN/control"
+
+          dpkg-deb --build --root-owner-group "$DIR"
+
+      - name: Upload .deb artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-packages
+          path: '*.deb'
+          retention-days: 1
+
+  rpm:
+    name: Fedora RPM package
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          dnf install -y \
+            gcc \
+            gstreamer1-devel \
+            gstreamer1-plugins-base-devel \
+            rpm-build \
+            systemd-rpm-macros
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: fedora-cargo-pkg-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            fedora-cargo-pkg-
+
+      - name: Build release binaries
+        run: cargo build --release --workspace
+
+      - name: Get version
+        id: version
+        run: echo "version=$(grep -A1 '\[workspace.package\]' Cargo.toml | grep version | sed 's/.*"\(.*\)"/\1/')" >> "$GITHUB_OUTPUT"
+
+      - name: Create RPM spec for gst-pop
+        run: |
+          VER=${{ steps.version.outputs.version }}
+          mkdir -p rpmbuild/{SPECS,BUILDROOT}
+
+          cat > rpmbuild/SPECS/gst-pop.spec <<'SPEC'
+          Name:           gst-pop
+          Version:        %{version}
+          Release:        1%{?dist}
+          Summary:        GStreamer pipeline management daemon
+          License:        GPL-3.0-only
+          URL:            https://github.com/dabrain34/GstPrinceOfParser
+
+          Requires:       gstreamer1 >= 1.16
+          Requires:       gstreamer1-plugins-base
+
+          %description
+          GStreamer Prince of Parser (gst-pop) is a pipeline management
+          daemon with WebSocket and DBus interfaces for creating,
+          controlling, and monitoring GStreamer media pipelines remotely.
+
+          %install
+          install -Dm755 %{_sourcedir}/gst-pop %{buildroot}%{_bindir}/gst-pop
+          ln -sf gst-pop %{buildroot}%{_bindir}/gst-popd
+          for cmd in launch inspect discover play; do
+            ln -sf gst-pop %{buildroot}%{_bindir}/gst-pop-${cmd}
+          done
+          install -Dm644 %{_sourcedir}/gst-pop.service %{buildroot}%{_userunitdir}/gst-pop.service
+
+          %files
+          %{_bindir}/gst-pop
+          %{_bindir}/gst-popd
+          %{_bindir}/gst-pop-launch
+          %{_bindir}/gst-pop-inspect
+          %{_bindir}/gst-pop-discover
+          %{_bindir}/gst-pop-play
+          %{_userunitdir}/gst-pop.service
+          SPEC
+          sed -i 's/^          //' rpmbuild/SPECS/gst-pop.spec
+          sed -i "s/%{version}/${VER}/g" rpmbuild/SPECS/gst-pop.spec
+
+      - name: Create RPM spec for gst-popctl
+        run: |
+          VER=${{ steps.version.outputs.version }}
+
+          cat > rpmbuild/SPECS/gst-popctl.spec <<'SPEC'
+          Name:           gst-popctl
+          Version:        %{version}
+          Release:        1%{?dist}
+          Summary:        WebSocket control client for gst-pop
+          License:        GPL-3.0-only
+          URL:            https://github.com/dabrain34/GstPrinceOfParser
+
+          Requires:       gst-pop = %{version}
+
+          %description
+          Interactive command-line client for connecting to a gst-pop
+          daemon over WebSocket.
+
+          %install
+          install -Dm755 %{_sourcedir}/gst-popctl %{buildroot}%{_bindir}/gst-popctl
+
+          %files
+          %{_bindir}/gst-popctl
+          SPEC
+          sed -i 's/^          //' rpmbuild/SPECS/gst-popctl.spec
+          sed -i "s/%{version}/${VER}/g" rpmbuild/SPECS/gst-popctl.spec
+
+      - name: Build RPMs
+        run: |
+          VER=${{ steps.version.outputs.version }}
+
+          # Prepare sources
+          mkdir -p rpmbuild/SOURCES
+          cp target/release/gst-pop rpmbuild/SOURCES/
+          cp target/release/gst-popctl rpmbuild/SOURCES/
+          sed 's|@bindir@|/usr/bin|g' data/gst-pop.service.in > rpmbuild/SOURCES/gst-pop.service
+
+          rpmbuild --define "_topdir $(pwd)/rpmbuild" \
+                   --define "_sourcedir $(pwd)/rpmbuild/SOURCES" \
+                   -bb rpmbuild/SPECS/gst-pop.spec
+
+          rpmbuild --define "_topdir $(pwd)/rpmbuild" \
+                   --define "_sourcedir $(pwd)/rpmbuild/SOURCES" \
+                   -bb rpmbuild/SPECS/gst-popctl.spec
+
+      - name: Upload RPM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-packages
+          path: 'rpmbuild/RPMS/**/*.rpm'
           retention-days: 1
 
   release:
     name: Create Release
-    needs: [build]
+    needs: [build, deb, rpm]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -133,8 +377,8 @@ jobs:
 
       - name: Create source archive
         run: |
-          git archive --format=tar.gz --prefix=gpop-${{ env.TAG_NAME }}/ \
-            -o gpop-${{ env.TAG_NAME }}-source.tar.gz HEAD
+          git archive --format=tar.gz --prefix=gst-pop-${{ env.TAG_NAME }}/ \
+            -o gst-pop-${{ env.TAG_NAME }}-source.tar.gz HEAD
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -143,16 +387,18 @@ jobs:
           merge-multiple: true
 
       - name: List release artifacts
-        run: ls -la artifacts/ gpop-*-source.tar.gz
+        run: ls -la artifacts/ gst-pop-*-source.tar.gz
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          name: gpop ${{ env.TAG_NAME }}
+          name: gst-pop ${{ env.TAG_NAME }}
           generate_release_notes: true
           make_latest: "true"
           fail_on_unmatched_files: true
           files: |
-            artifacts/gpop-*.zip
-            gpop-*-source.tar.gz
+            artifacts/gst-pop-*.zip
+            artifacts/*.deb
+            artifacts/*.rpm
+            gst-pop-*-source.tar.gz
