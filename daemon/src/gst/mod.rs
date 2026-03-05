@@ -8,6 +8,7 @@
 
 pub mod discoverer;
 pub mod event;
+pub mod inspect_format;
 pub mod manager;
 pub mod pipeline;
 pub mod registry;
@@ -36,6 +37,9 @@ mod playback_mode_tests;
 
 #[cfg(test)]
 mod discoverer_tests;
+
+#[cfg(test)]
+mod inspect_format_tests;
 
 #[cfg(test)]
 mod registry_tests;

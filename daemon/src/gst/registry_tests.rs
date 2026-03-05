@@ -25,6 +25,12 @@ fn test_get_elements_none() {
     assert!(fakesink.author.is_none());
     assert!(fakesink.rank.is_none());
     assert!(fakesink.pad_templates.is_none());
+    assert!(fakesink.plugin_info.is_none());
+    assert!(fakesink.hierarchy.is_none());
+    assert!(fakesink.properties.is_none());
+    assert!(fakesink.signals.is_none());
+    assert!(fakesink.uri_info.is_none());
+    assert!(fakesink.has_clocking.is_none());
 }
 
 #[test]
@@ -38,8 +44,14 @@ fn test_get_elements_summary() {
     assert!(fakesink.description.is_some());
     assert!(fakesink.author.is_some());
     assert!(fakesink.rank.is_some());
-    // Summary should not include pad templates
+    // Summary should not include pad templates or full-detail fields
     assert!(fakesink.pad_templates.is_none());
+    assert!(fakesink.plugin_info.is_none());
+    assert!(fakesink.hierarchy.is_none());
+    assert!(fakesink.properties.is_none());
+    assert!(fakesink.signals.is_none());
+    assert!(fakesink.uri_info.is_none());
+    assert!(fakesink.has_clocking.is_none());
 }
 
 #[test]
@@ -56,6 +68,27 @@ fn test_get_elements_full() {
     assert!(pads
         .iter()
         .any(|p| p.direction == "sink" && p.presence == "always"));
+
+    // Full detail should include plugin_info, hierarchy, and properties
+    assert!(fakesink.plugin_info.is_some());
+    let pi = fakesink.plugin_info.as_ref().unwrap();
+    assert!(!pi.name.is_empty());
+    assert!(!pi.version.is_empty());
+
+    assert!(fakesink.hierarchy.is_some());
+    let hierarchy = fakesink.hierarchy.as_ref().unwrap();
+    assert!(!hierarchy.is_empty());
+    // hierarchy is root-first: GObject → ... → GstFakeSink
+    assert_eq!(hierarchy.first().unwrap(), "GObject");
+    assert!(hierarchy.last().unwrap().contains("FakeSink"));
+
+    assert!(fakesink.properties.is_some());
+    let props = fakesink.properties.as_ref().unwrap();
+    assert!(!props.is_empty());
+    // fakesink should have a "dump" property
+    assert!(props.iter().any(|p| p.name == "dump"));
+
+    assert!(fakesink.has_clocking.is_some());
 }
 
 #[test]
