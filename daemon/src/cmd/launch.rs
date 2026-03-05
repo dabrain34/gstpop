@@ -17,14 +17,15 @@ use gstpop::server::ServerHandle;
 
 /// Launch pipelines and exit when all finish
 #[derive(Args, Debug)]
+#[command(trailing_var_arg = true)]
 pub struct LaunchArgs {
     /// Pipeline description(s) to launch
     #[arg(short = 'p', long = "pipeline")]
     pub pipelines: Vec<String>,
 
-    /// Pipeline description (positional)
-    #[arg(value_name = "PIPELINE")]
-    pub pipeline: Option<String>,
+    /// Pipeline description (positional, e.g. videotestsrc ! autovideosink)
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    pub pipeline: Vec<String>,
 
     #[command(flatten)]
     pub server: super::common::ServerArgs,
@@ -33,8 +34,8 @@ pub struct LaunchArgs {
 pub async fn run(args: LaunchArgs) -> i32 {
     // Merge positional pipeline with -p flag pipelines
     let mut all_pipelines = Vec::new();
-    if let Some(ref p) = args.pipeline {
-        all_pipelines.push(p.clone());
+    if !args.pipeline.is_empty() {
+        all_pipelines.push(args.pipeline.join(" "));
     }
     all_pipelines.extend(args.pipelines.iter().cloned());
 
