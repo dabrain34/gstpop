@@ -29,9 +29,9 @@ fn launch_subcommand_parses() {
 
 #[test]
 fn launch_positional_parses() {
-    let cli = Cli::parse_from(["gst-pop", "launch", "fakesrc ! fakesink"]);
+    let cli = Cli::parse_from(["gst-pop", "launch", "fakesrc", "!", "fakesink"]);
     if let Some(Commands::Launch(args)) = cli.command {
-        assert_eq!(args.pipeline, Some("fakesrc ! fakesink".to_string()));
+        assert_eq!(args.pipeline.join(" "), "fakesrc ! fakesink");
     } else {
         panic!("Expected Launch subcommand");
     }
