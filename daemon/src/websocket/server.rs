@@ -16,7 +16,7 @@ use subtle::ConstantTimeEq;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, RwLock};
 use tokio_tungstenite::tungstenite::handshake::server::{
-    ErrorResponse, Request as WsRequest, Response as WsResponse,
+    Callback, ErrorResponse, Request as WsRequest, Response as WsResponse,
 };
 use tokio_tungstenite::tungstenite::http::StatusCode;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
@@ -167,72 +167,9 @@ async fn handle_connection(
 
     // Accept WebSocket connection with optional API key and origin validation
     let ws_stream = if api_key.is_some() || allowed_origins.is_some() {
-        let expected_key = api_key;
-        let origins = allowed_origins;
-        let callback = move |req: &WsRequest,
-                             res: WsResponse|
-              -> std::result::Result<WsResponse, ErrorResponse> {
-            // Validate Origin header if allowed_origins is configured
-            // Note: Non-browser clients (CLI tools, scripts) typically don't send Origin headers.
-            // If Origin is absent, we allow the request to support programmatic API access.
-            // Only reject if Origin is present but not in the allowed list.
-            if let Some(ref allowed) = origins {
-                if let Some(origin_header) = req.headers().get("Origin") {
-                    let origin = origin_header.to_str().unwrap_or("");
-                    if !allowed.iter().any(|o| o == origin) {
-                        warn!(
-                            "Rejected connection: origin '{}' not in allowed list",
-                            origin
-                        );
-                        let mut err = ErrorResponse::new(None);
-                        *err.status_mut() = StatusCode::FORBIDDEN;
-                        return Err(err);
-                    }
-                }
-                // No Origin header = non-browser client, allow through
-            }
-
-            // Validate API key if configured
-            if let Some(ref expected) = expected_key {
-                match req.headers().get("Authorization") {
-                    Some(value) => {
-                        let provided = value.to_str().unwrap_or("").as_bytes();
-                        let expected_bytes = expected.as_bytes();
-                        // Use constant-time comparison to prevent timing attacks.
-                        // Hash both values to normalize length before comparison,
-                        // preventing key length leaks via timing.
-                        use std::hash::{Hash, Hasher};
-                        let hash_bytes = |data: &[u8]| -> u64 {
-                            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                            data.hash(&mut hasher);
-                            hasher.finish()
-                        };
-                        // First check: constant-time comparison of hashes (fixed-size, no length leak)
-                        let provided_hash = hash_bytes(provided).to_le_bytes();
-                        let expected_hash = hash_bytes(expected_bytes).to_le_bytes();
-                        let hashes_match = bool::from(provided_hash.ct_eq(&expected_hash));
-                        // Second check: if lengths happen to match, also do a full ct_eq
-                        // to avoid hash collision false positives
-                        let is_valid = hashes_match
-                            && provided.len() == expected_bytes.len()
-                            && bool::from(provided.ct_eq(expected_bytes));
-                        if is_valid {
-                            return Ok(res);
-                        } else {
-                            let mut err = ErrorResponse::new(None);
-                            *err.status_mut() = StatusCode::FORBIDDEN;
-                            return Err(err);
-                        }
-                    }
-                    None => {
-                        let mut err = ErrorResponse::new(None);
-                        *err.status_mut() = StatusCode::UNAUTHORIZED;
-                        return Err(err);
-                    }
-                }
-            }
-
-            Ok(res)
+        let callback = HandshakeValidator {
+            api_key,
+            allowed_origins,
         };
         match tokio_tungstenite::accept_hdr_async_with_config(stream, callback, Some(ws_config()))
             .await
@@ -365,4 +302,83 @@ async fn handle_connection(
 
     sender_task.abort();
     info!("Connection closed for {}", addr);
+}
+
+/// WebSocket handshake validator that checks Origin and API key headers.
+///
+/// We use a struct implementing the `Callback` trait instead of a closure because
+/// `tokio_tungstenite::accept_hdr_async` returns `Result<WebSocketStream, tungstenite::Error>`
+/// where `tungstenite::Error` is large (~152 bytes). When a closure is used as the callback,
+/// clippy raises `result_large_err` on the return type. Wrapping the validation logic in a
+/// struct that implements `Callback` directly avoids this lint.
+struct HandshakeValidator {
+    api_key: Option<String>,
+    allowed_origins: Option<Vec<String>>,
+}
+
+fn reject(status: StatusCode) -> ErrorResponse {
+    let mut err = ErrorResponse::new(None);
+    *err.status_mut() = status;
+    err
+}
+
+impl Callback for HandshakeValidator {
+    fn on_request(
+        self,
+        request: &WsRequest,
+        response: WsResponse,
+    ) -> std::result::Result<WsResponse, ErrorResponse> {
+        // Validate Origin header if allowed_origins is configured.
+        // Non-browser clients typically don't send Origin headers.
+        // If Origin is absent, allow the request for programmatic API access.
+        // Only reject if Origin is present but not in the allowed list.
+        if let Some(ref allowed) = self.allowed_origins {
+            if let Some(origin_header) = request.headers().get("Origin") {
+                let origin = origin_header.to_str().unwrap_or("");
+                if !allowed.iter().any(|o| o == origin) {
+                    warn!(
+                        "Rejected connection: origin '{}' not in allowed list",
+                        origin
+                    );
+                    return Err(reject(StatusCode::FORBIDDEN));
+                }
+            }
+        }
+
+        // Validate API key if configured
+        if let Some(ref expected) = self.api_key {
+            match request.headers().get("Authorization") {
+                Some(value) => {
+                    let provided = value.to_str().unwrap_or("").as_bytes();
+                    let expected_bytes = expected.as_bytes();
+                    // Use constant-time comparison to prevent timing attacks.
+                    // Hash both values to normalize length before comparison,
+                    // preventing key length leaks via timing.
+                    use std::hash::{Hash, Hasher};
+                    let hash_bytes = |data: &[u8]| -> u64 {
+                        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                        data.hash(&mut hasher);
+                        hasher.finish()
+                    };
+                    // First check: constant-time comparison of hashes (fixed-size, no length leak)
+                    let provided_hash = hash_bytes(provided).to_le_bytes();
+                    let expected_hash = hash_bytes(expected_bytes).to_le_bytes();
+                    let hashes_match = bool::from(provided_hash.ct_eq(&expected_hash));
+                    // Second check: if lengths happen to match, also do a full ct_eq
+                    // to avoid hash collision false positives
+                    let is_valid = hashes_match
+                        && provided.len() == expected_bytes.len()
+                        && bool::from(provided.ct_eq(expected_bytes));
+                    if !is_valid {
+                        return Err(reject(StatusCode::FORBIDDEN));
+                    }
+                }
+                None => {
+                    return Err(reject(StatusCode::UNAUTHORIZED));
+                }
+            }
+        }
+
+        Ok(response)
+    }
 }
