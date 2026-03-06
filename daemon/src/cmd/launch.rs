@@ -17,7 +17,6 @@ use gstpop::server::ServerHandle;
 
 /// Launch pipelines and exit when all finish
 #[derive(Args, Debug)]
-#[command(trailing_var_arg = true)]
 pub struct LaunchArgs {
     /// Pipeline description(s) to launch
     #[arg(short = 'p', long = "pipeline")]
@@ -85,10 +84,10 @@ pub async fn run(args: LaunchArgs) -> i32 {
 
     let tracker = PlaybackTracker::new(&ids, &failed, Arc::clone(&manager));
 
-    let (done_tx, done_rx) = tokio::sync::oneshot::channel::<i32>();
+    let (done_tx, done_rx) = tokio::sync::oneshot::channel::<gstpop::playback::PlaybackResult>();
     tokio::spawn(async move {
-        let code = tracker.run(event_rx).await;
-        let _ = done_tx.send(code);
+        let result = tracker.run(event_rx).await;
+        let _ = done_tx.send(result);
     });
 
     let exit_code = tokio::select! {
@@ -101,10 +100,13 @@ pub async fn run(args: LaunchArgs) -> i32 {
         }
         result = done_rx => {
             match result {
-                Ok(code) => {
-                    let code = if code == 0 && creation_failures > 0 { 1 } else { code };
+                Ok(pr) => {
+                    let code = if pr.exit_code == 0 && creation_failures > 0 { 1 } else { pr.exit_code };
                     if code == 0 {
                         info!("All pipelines completed successfully");
+                    } else if code == gstpop::playback::EXIT_CODE_UNSUPPORTED {
+                        let reason = pr.unsupported_message.as_deref().unwrap_or("unknown");
+                        error!("Media format not supported: {}", reason);
                     } else {
                         warn!("Exiting with code {}", code);
                     }

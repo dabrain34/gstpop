@@ -77,7 +77,8 @@ pub async fn run(args: PlayArgs) -> i32 {
     // Subscribe before playing so no events are missed
     let event_rx = event_tx.subscribe();
 
-    let failed = manager.play_all(std::slice::from_ref(&id)).await;
+    let ids = [id];
+    let failed = manager.play_all(&ids).await;
     if !failed.is_empty() {
         error!("Failed to start playback for URI: {}", args.uri);
         manager.shutdown().await;
@@ -88,12 +89,12 @@ pub async fn run(args: PlayArgs) -> i32 {
     }
     info!("Playing {}", args.uri);
 
-    let tracker = PlaybackTracker::new(&[id], &failed, Arc::clone(&manager));
+    let tracker = PlaybackTracker::new(&ids, &failed, Arc::clone(&manager));
 
-    let (done_tx, done_rx) = tokio::sync::oneshot::channel::<i32>();
+    let (done_tx, done_rx) = tokio::sync::oneshot::channel::<gstpop::playback::PlaybackResult>();
     tokio::spawn(async move {
-        let code = tracker.run(event_rx).await;
-        let _ = done_tx.send(code);
+        let result = tracker.run(event_rx).await;
+        let _ = done_tx.send(result);
     });
 
     let exit_code = tokio::select! {
@@ -106,13 +107,16 @@ pub async fn run(args: PlayArgs) -> i32 {
         }
         result = done_rx => {
             match result {
-                Ok(code) => {
-                    if code == 0 {
+                Ok(pr) => {
+                    if pr.exit_code == 0 {
                         info!("Playback completed successfully");
+                    } else if pr.exit_code == gstpop::playback::EXIT_CODE_UNSUPPORTED {
+                        let reason = pr.unsupported_message.as_deref().unwrap_or("unknown");
+                        error!("Media format not supported for URI '{}': {}", args.uri, reason);
                     } else {
-                        warn!("Exiting with code {}", code);
+                        warn!("Exiting with code {}", pr.exit_code);
                     }
-                    code
+                    pr.exit_code
                 }
                 Err(_) => {
                     error!("Playback tracker dropped unexpectedly");
