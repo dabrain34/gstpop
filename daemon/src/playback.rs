@@ -17,11 +17,19 @@ use crate::gst::{EventReceiver, PipelineEvent, PipelineManager};
 pub const EXIT_CODE_ERROR: i32 = 1;
 pub const EXIT_CODE_UNSUPPORTED: i32 = 69; // EX_UNAVAILABLE
 
+/// Result of playback tracking, including exit code and optional detail message.
+pub struct PlaybackResult {
+    pub exit_code: i32,
+    /// If the exit code is EXIT_CODE_UNSUPPORTED, contains the GStreamer error message.
+    pub unsupported_message: Option<String>,
+}
+
 /// Tracks playback progress for a set of pipelines and signals when all are done.
 pub struct PlaybackTracker {
     pending: HashSet<String>,
     had_error: bool,
     had_unsupported: bool,
+    unsupported_message: Option<String>,
     started_count: usize,
     manager: Arc<PipelineManager>,
 }
@@ -44,18 +52,22 @@ impl PlaybackTracker {
             started_count: pending.len(),
             had_error: !failed_ids.is_empty(),
             had_unsupported: false,
+            unsupported_message: None,
             pending,
             manager,
         }
     }
 
     /// Run the playback tracker, consuming events until all pipelines are done.
-    /// Returns the exit code (0 = success, 1 = error, 69 = unsupported media).
-    pub async fn run(mut self, mut event_rx: EventReceiver) -> i32 {
+    /// Returns a `PlaybackResult` with exit code and optional detail message.
+    pub async fn run(mut self, mut event_rx: EventReceiver) -> PlaybackResult {
         // If all pipelines already failed to play, return immediately
         if self.pending.is_empty() {
             info!("Playback mode: all pipelines failed to start");
-            return EXIT_CODE_ERROR;
+            return PlaybackResult {
+                exit_code: EXIT_CODE_ERROR,
+                unsupported_message: None,
+            };
         }
 
         loop {
@@ -92,6 +104,9 @@ impl PlaybackTracker {
                     } => {
                         if self.pending.remove(pipeline_id) {
                             self.had_unsupported = true;
+                            if self.unsupported_message.is_none() {
+                                self.unsupported_message = Some(message.clone());
+                            }
                             warn!(
                                 "Playback mode: pipeline '{}' unsupported: {} ({}/{} remaining)",
                                 pipeline_id,
@@ -150,12 +165,16 @@ impl PlaybackTracker {
             if self.pending.is_empty() {
                 info!("Playback mode: all pipelines finished");
                 // Error takes priority over Unsupported
-                return if self.had_error {
+                let exit_code = if self.had_error {
                     EXIT_CODE_ERROR
                 } else if self.had_unsupported {
                     EXIT_CODE_UNSUPPORTED
                 } else {
                     0
+                };
+                return PlaybackResult {
+                    exit_code,
+                    unsupported_message: self.unsupported_message,
                 };
             }
         }
