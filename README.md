@@ -168,6 +168,44 @@ git push origin v0.2.0
 
 This triggers the Release workflow which builds binaries for Linux, Windows, and macOS, creates `.deb` and `.rpm` packages, and publishes a GitHub Release with all artifacts.
 
+### Docker
+
+A multi-arch Docker image (amd64 + arm64) based on Fedora with all GStreamer plugins is published to GitHub Container Registry on each release.
+
+#### Pull and run
+
+```bash
+docker pull ghcr.io/dabrain34/gstpop:latest
+
+docker run -d -p 9000:9000 --name gst-pop ghcr.io/dabrain34/gstpop:latest
+```
+
+The daemon listens on port 9000 (WebSocket).
+
+#### With docker compose
+
+```bash
+cd docker
+docker compose up -d
+```
+
+#### Configuration
+
+Pass environment variables to configure the daemon:
+
+```bash
+docker run -d -p 9000:9000 \
+  -e GSTPOP_API_KEY=mysecretkey \
+  -e RUST_LOG=gst_pop=debug \
+  --name gst-pop ghcr.io/dabrain34/gstpop:latest
+```
+
+#### Verify
+
+```bash
+docker exec gst-pop gst-pop-inspect | wc -l
+```
+
 ### Security Considerations
 
 #### Pipeline Descriptions
