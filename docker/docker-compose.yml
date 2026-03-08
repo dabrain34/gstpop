@@ -1,0 +1,13 @@
+services:
+  gst-pop:
+    image: ghcr.io/dabrain34/gstpop:${GST_POP_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gst-pop
+    ports:
+      - "9000:9000"
+    environment:
+      - GSTPOP_API_KEY=${GSTPOP_API_KEY:-}
+      - RUST_LOG=${RUST_LOG:-gst_pop=info}
+    restart: unless-stopped
