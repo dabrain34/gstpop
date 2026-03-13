@@ -245,9 +245,17 @@ jobs:
           retention-days: 1
 
   rpm:
-    name: Fedora RPM package
-    runs-on: ubuntu-latest
+    name: Fedora RPM package (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     container: fedora:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
 
@@ -270,9 +278,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: fedora-cargo-pkg-${{ hashFiles('**/Cargo.lock') }}
+          key: fedora-${{ matrix.arch }}-cargo-pkg-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            fedora-cargo-pkg-
+            fedora-${{ matrix.arch }}-cargo-pkg-
 
       - name: Build release binaries
         run: cargo build --release --workspace
@@ -373,7 +381,7 @@ jobs:
       - name: Upload RPM artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rpm-packages
+          name: rpm-packages-${{ matrix.arch }}
           path: '*.rpm'
           retention-days: 1
 
