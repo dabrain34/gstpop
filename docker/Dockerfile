@@ -13,7 +13,7 @@
 FROM fedora:42 AS builder
 
 ARG TARGETARCH
-ARG GST_POP_VERSION=0.4.2
+ARG GST_POP_VERSION
 
 RUN dnf install -y curl && dnf clean all
 
@@ -61,7 +61,7 @@ RUN test -f /tmp/staging/gst-pop || \
 # ============================================================
 FROM fedora:42
 
-ARG GST_POP_VERSION=0.4.2
+ARG GST_POP_VERSION
 
 LABEL maintainer="Stephane Cerveau <scerveau@igalia.com>"
 LABEL description="gst-pop v${GST_POP_VERSION} - GStreamer pipeline management daemon"

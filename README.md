@@ -157,6 +157,8 @@ Or connect to a specific server:
 
 See [daemon/README.md](daemon/README.md) for full API documentation.
 
+See [CHANGELOG.md](CHANGELOG.md) for the list of changes in each release.
+
 ### Creating a Release
 
 Update the version in `Cargo.toml` (`[workspace.package]` section), run `cargo check` to update `Cargo.lock`, commit, and push the tag:
