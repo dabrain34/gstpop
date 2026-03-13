@@ -123,8 +123,16 @@ jobs:
           retention-days: 1
 
   deb:
-    name: Debian package
-    runs-on: ubuntu-latest
+    name: Debian package (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
 
@@ -232,7 +240,7 @@ jobs:
       - name: Upload .deb artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: deb-packages
+          name: deb-packages-${{ matrix.arch }}
           path: '*.deb'
           retention-days: 1
 
