@@ -94,8 +94,8 @@ RUN ln -sf gst-pop /usr/bin/gst-popd && \
     ln -sf gst-pop /usr/bin/gst-pop-discover && \
     ln -sf gst-pop /usr/bin/gst-pop-play
 
-# --- Create non-root user ---
-RUN useradd -r -s /sbin/nologin -d /nonexistent gstpop
+# --- Create non-root user with a writable home for caches (fontconfig, etc.) ---
+RUN useradd -r -s /sbin/nologin -m -d /var/lib/gstpop gstpop
 
 USER gstpop
 
