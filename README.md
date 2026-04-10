@@ -31,12 +31,17 @@ Receive live events for pipeline state changes, errors, and end-of-stream notifi
 ### Project Structure
 
 ```
-GstPrinceOfParser/
+gstpop/
 ├── daemon/           # Rust server (WebSocket + DBus)
 ├── client/
-│   ├── rust/         # Rust WebSocket client
+│   ├── rust/         # Rust WebSocket client (gst-popctl)
 │   └── c/            # C client
 ├── lib/              # C library (libgstpop)
+├── web/              # Web frontend
+├── docker/           # Dockerfile and docker-compose
+├── scripts/          # Helper scripts
+├── data/             # systemd service file
+├── Formula/          # Homebrew formulae
 ├── Cargo.toml        # Rust workspace
 └── meson.build       # Build system (C + Rust)
 ```
@@ -83,6 +88,29 @@ Example: build only the daemon (no clients):
 meson setup builddir -Dclient=false -Dcclient=false
 ninja -C builddir
 ```
+
+## License
+
+GstPrinceOfParser is distributed under the terms of the [GNU General Public License v3.0 or later](LICENSE).
+See [LICENSE](LICENSE) for the full text.
+
+## Credits
+
+GstPrinceOfParser wouldn't exist without free and open-source software such as
+GLib, GStreamer, and many more.
+
+## Contributing
+
+This project welcomes contributions, whether written by the contributor or generated with the assistance of AI tools.
+What matters is that the human contributor fully understands every line of code they submit and can explain their reasoning when asked.
+There is no rush to contribute—take the time needed to ensure your work is correct, well-tested, and complete.
+New contributors must start with small, well-isolated changes accompanied by a clear explanation;
+large changes from new contributors will be rejected regardless of how they were produced.
+As trust is established through a track record of quality submissions, contributors may take on larger and more complex changes.
+Contributions that appear to lack genuine understanding or create unnecessary review burden will be rejected without discussion.
+Repeated low-quality submissions will result in a permanent ban.
+
+You will need a [GitHub account](https://github.com/signup). [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) this repo, [clone](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) your fork, create a [feature branch](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-and-deleting-branches-within-your-repository), [commit](http://git-scm.com/docs/git-commit), [push](http://git-scm.com/docs/git-push), and submit a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request).
 
 ### Usage
 
